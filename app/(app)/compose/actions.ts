@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { generateEmbedding, generateLinkedInPost } from "@/lib/gemini";
+import { generateEmbedding } from "@/lib/gemini";
+import { generateLinkedInPost } from "@/lib/claude";
 
 export async function getIdeasForCompose() {
   try {
