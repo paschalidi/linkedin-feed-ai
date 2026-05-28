@@ -3,8 +3,18 @@ import { type NextRequest, NextResponse } from "next/server";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const devBypass = process.env.DEV_BYPASS_AUTH === "true";
 
 export const updateSession = async (request: NextRequest) => {
+  // Bypass auth entirely in local dev mode
+  if (devBypass) {
+    return NextResponse.next({
+      request: {
+        headers: request.headers,
+      },
+    });
+  }
+
   // Create an unmodified response
   let supabaseResponse = NextResponse.next({
     request: {

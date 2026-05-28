@@ -1,3 +1,5 @@
+"use server";
+
 import { createClient } from "@supabase/supabase-js";
 
 const DEV_EMAIL = "dev@linkedin-feed-ai.local";
@@ -14,7 +16,7 @@ export async function ensureDevUser() {
       "2. Under 'Secret API key', click 'Generate new secret key'\n" +
       "3. Copy the sb_secret_... key\n" +
       "4. Add it to your .env file: SUPABASE_SECRET_KEY=sb_secret_...\n\n" +
-      "Or disable email confirmation in Supabase Authentication settings."
+      "Or set DEV_BYPASS_AUTH=true in .env for a no-key workaround."
     );
   }
 
