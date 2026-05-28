@@ -1,27 +1,26 @@
-"use server";
-
 import { createClient } from "@supabase/supabase-js";
 
 const DEV_EMAIL = "dev@linkedin-feed-ai.local";
 const DEV_PASSWORD = "devpassword123";
 
 export async function ensureDevUser() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
 
-  if (!serviceRoleKey) {
+  if (!secretKey) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is not set.\n\n" +
-      "To use Dev Login, add your service role key to .env:\n" +
+      "SUPABASE_SECRET_KEY is not set.\n\n" +
+      "To use Dev Login, add your secret key to .env:\n" +
       "1. Go to https://supabase.com/dashboard/project/_/settings/api\n" +
-      "2. Copy the 'service_role' key\n" +
-      "3. Add it to your .env file: SUPABASE_SERVICE_ROLE_KEY=your_key_here\n\n" +
+      "2. Under 'Secret API key', click 'Generate new secret key'\n" +
+      "3. Copy the sb_secret_... key\n" +
+      "4. Add it to your .env file: SUPABASE_SECRET_KEY=sb_secret_...\n\n" +
       "Or disable email confirmation in Supabase Authentication settings."
     );
   }
 
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
+    secretKey,
     {
       auth: {
         autoRefreshToken: false,
