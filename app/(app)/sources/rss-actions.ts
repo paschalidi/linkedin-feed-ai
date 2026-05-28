@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { fetchRSSFeed, filterRecentItems } from "@/lib/rss-parser";
@@ -42,8 +43,9 @@ export async function syncRSSFeed(sourceId: string, feedUrl: string) {
 
         // Store in database using raw SQL since Prisma doesn't natively support vector types
         await prisma.$executeRaw`
-          INSERT INTO articles (source_id, title, url, content, embedding, created_at)
+          INSERT INTO articles (id, source_id, title, url, content, embedding, created_at)
           VALUES (
+            ${randomUUID()},
             ${sourceId},
             ${title || item.title},
             ${item.link},

@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { fetchArticleText } from "@/lib/article-extractor";
@@ -15,10 +16,13 @@ export async function ingestArticle(sourceId: string, url: string) {
   const embedding = await generateEmbedding(content);
   const embeddingLiteral = formatEmbeddingForPostgres(embedding);
 
+  const articleId = randomUUID();
+
   // Store in database using raw SQL since Prisma doesn't natively support vector types
-  const result = await prisma.$queryRaw<{ id: string }[]>`
-    INSERT INTO articles (source_id, title, url, content, embedding, created_at)
+  await prisma.$executeRaw`
+    INSERT INTO articles (id, source_id, title, url, content, embedding, created_at)
     VALUES (
+      ${articleId},
       ${sourceId},
       ${title},
       ${url},
@@ -26,10 +30,7 @@ export async function ingestArticle(sourceId: string, url: string) {
       ${embeddingLiteral}::vector(768),
       NOW()
     )
-    RETURNING id
   `;
-
-  const articleId = result[0].id;
 
   // Update source last_fetched_at
   await supabase
