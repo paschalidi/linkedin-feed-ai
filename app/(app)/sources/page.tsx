@@ -138,9 +138,9 @@ export default async function SourcesPage() {
                             {source.url}
                           </p>
                         )}
-                        {source.last_fetched_at && (
+                        {source.lastFetchedAt && (
                           <p className="text-xs text-muted-foreground">
-                            Last fetched: {new Date(source.last_fetched_at).toLocaleDateString()}
+                            Last fetched: {new Date(source.lastFetchedAt).toLocaleDateString()}
                           </p>
                         )}
                       </div>

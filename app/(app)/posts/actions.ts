@@ -1,32 +1,34 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 export async function getPost(id: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("generated_posts")
-    .select("*, daily_ideas(*)")
-    .eq("id", id)
-    .single();
-
-  if (error) throw error;
-  return data;
+  try {
+    return await prisma.generatedPost.findUnique({
+      where: { id },
+      include: { idea: true },
+    });
+  } catch (err: any) {
+    console.error("getPost error:", err);
+    throw new Error(err?.message || "Failed to get post");
+  }
 }
 
 export async function updatePost(formData: FormData) {
-  const supabase = await createClient();
-  const id = formData.get("id") as string;
-  const final_content = formData.get("final_content") as string;
-  const status = formData.get("status") as string;
+  try {
+    const id = formData.get("id") as string;
+    const finalContent = formData.get("final_content") as string;
+    const status = formData.get("status") as string;
 
-  const { data, error } = await supabase
-    .from("generated_posts")
-    .update({ final_content, status })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+    return await prisma.generatedPost.update({
+      where: { id },
+      data: {
+        finalContent,
+        status,
+      },
+    });
+  } catch (err: any) {
+    console.error("updatePost error:", err);
+    throw new Error(err?.message || "Failed to update post");
+  }
 }

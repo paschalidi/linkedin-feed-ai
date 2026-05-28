@@ -27,7 +27,7 @@ export default async function PostDetailPage({
     notFound();
   }
 
-  const idea = post.daily_ideas;
+  const idea = post.idea;
 
   return (
     <div className="space-y-8">
@@ -58,7 +58,7 @@ export default async function PostDetailPage({
               {post.status}
             </Badge>
             <span className="text-base text-muted-foreground">
-              {new Date(post.created_at).toLocaleDateString()}
+              {new Date(post.createdAt).toLocaleDateString()}
             </span>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default async function PostDetailPage({
               <input type="hidden" name="id" value={post.id} />
               <Textarea
                 name="final_content"
-                defaultValue={post.final_content || post.draft_content}
+                defaultValue={post.finalContent || post.draftContent}
                 rows={20}
                 className="font-mono text-base leading-relaxed"
               />
@@ -113,7 +113,7 @@ export default async function PostDetailPage({
                   Mark as Posted
                 </Button>
 
-                <CopyButton text={post.final_content || post.draft_content} />
+                <CopyButton text={post.finalContent || post.draftContent} />
               </div>
             </form>
           </CardContent>
@@ -142,7 +142,7 @@ export default async function PostDetailPage({
             <div>
               <p className="text-base font-medium">Word Count</p>
               <p className="text-base text-muted-foreground">
-                {(post.final_content || post.draft_content).split(/\s+/).length}{" "}
+                {(post.finalContent || post.draftContent).split(/\s+/).length}{" "}
                 words
               </p>
             </div>
@@ -150,7 +150,7 @@ export default async function PostDetailPage({
             <div>
               <p className="text-base font-medium">Character Count</p>
               <p className="text-base text-muted-foreground">
-                {(post.final_content || post.draft_content).length} characters
+                {(post.finalContent || post.draftContent).length} characters
               </p>
             </div>
           </CardContent>

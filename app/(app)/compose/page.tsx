@@ -131,7 +131,7 @@ export default async function ComposePage({
                       <SelectItem key={style.id} value={style.id}>
                         <div className="flex items-center gap-2 text-base">
                           {style.name}
-                          {style.is_active && (
+                          {style.isActive && (
                             <span className="text-sm text-muted-foreground">
                               (active)
                             </span>

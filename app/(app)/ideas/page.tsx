@@ -113,7 +113,7 @@ export default async function IdeasPage() {
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        Added {new Date(idea.created_at).toLocaleDateString()}
+                        Added {new Date(idea.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

@@ -106,14 +106,14 @@ export default async function StylesPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-base">{profile.name}</span>
-                        {profile.is_active && (
+                        {profile.isActive && (
                           <Badge variant="default">
                             <Star className="h-4 w-4 mr-1" /> Active
                           </Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-1">
-                        {!profile.is_active && (
+                        {!profile.isActive && (
                           <form
                             action={async () => {
                               "use server";
@@ -140,7 +140,7 @@ export default async function StylesPage() {
                       </div>
                     </div>
                     <p className="text-base text-muted-foreground line-clamp-3">
-                      {profile.prompt_text}
+                      {profile.promptText}
                     </p>
                   </div>
                 ))}

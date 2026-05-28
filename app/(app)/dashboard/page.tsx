@@ -1,43 +1,25 @@
-import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles, ClipboardList, ArrowRight, AlertTriangle } from "lucide-react";
+import { Plus, Sparkles, ClipboardList, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
+  const ideas = await prisma.dailyIdea.findMany({
+    where: { status: "draft" },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
 
-  let ideas: any[] = [];
-  let posts: any[] = [];
-  let dbError: string | null = null;
+  const posts = await prisma.generatedPost.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    include: { idea: true },
+  });
 
-  try {
-    const { data: ideasData } = await supabase
-      .from("daily_ideas")
-      .select("*")
-      .eq("status", "draft")
-      .order("created_at", { ascending: false })
-      .limit(5);
-    ideas = ideasData || [];
-  } catch (err: any) {
-    console.error("Dashboard ideas error:", err);
-    dbError = "Database connection issue. Make sure tables are created.";
-  }
-
-  try {
-    const { data: postsData } = await supabase
-      .from("generated_posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(5);
-    posts = postsData || [];
-  } catch (err: any) {
-    console.error("Dashboard posts error:", err);
-  }
-
-  const draftCount = ideas?.length || 0;
-  const pendingReview = posts?.filter((p) => p.status === "draft").length || 0;
-  const approvedCount = posts?.filter((p) => p.status === "approved").length || 0;
+  const draftCount = ideas.length;
+  const pendingReview = posts.filter((p) => p.status === "draft").length;
+  const approvedCount = posts.filter((p) => p.status === "approved").length;
 
   return (
     <div className="space-y-8">
@@ -47,22 +29,6 @@ export default async function DashboardPage() {
           Generate and manage your LinkedIn content
         </p>
       </div>
-
-      {dbError && (
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:bg-yellow-950 dark:border-yellow-800">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600" />
-            <div>
-              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Database Setup Required
-              </p>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                {dbError} Run the SQL in <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">supabase/setup.sql</code>.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="grid gap-5 md:grid-cols-3">
         <Card>
@@ -126,7 +92,7 @@ export default async function DashboardPage() {
             <CardTitle>Recent Ideas</CardTitle>
           </CardHeader>
           <CardContent>
-            {(!ideas || ideas.length === 0) ? (
+            {ideas.length === 0 ? (
               <p className="text-base text-muted-foreground">
                 No ideas yet. Add one to get started.
               </p>
@@ -159,7 +125,7 @@ export default async function DashboardPage() {
             <CardTitle>Recent Posts</CardTitle>
           </CardHeader>
           <CardContent>
-            {(!posts || posts.length === 0) ? (
+            {posts.length === 0 ? (
               <p className="text-base text-muted-foreground">
                 No posts generated yet. Go to Ideas and generate your first post.
               </p>
@@ -173,10 +139,10 @@ export default async function DashboardPage() {
                   >
                     <div>
                       <p className="text-base line-clamp-2">
-                        {post.final_content || post.draft_content}
+                        {post.finalContent || post.draftContent}
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {post.status} · {new Date(post.created_at).toLocaleDateString()}
+                        {post.status} · {new Date(post.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                     <ArrowRight className="h-5 w-5 text-muted-foreground" />
