@@ -13,6 +13,10 @@ function getApiKey(): string {
   return apiKey;
 }
 
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Convert a JavaScript number array to a pgvector text literal string.
  * pgvector text input format: [0.1,0.2,0.3]
@@ -22,26 +26,55 @@ export function formatEmbeddingForPostgres(embedding: number[]): string {
   return "[" + embedding.join(",") + "]";
 }
 
-export async function generateEmbedding(text: string): Promise<number[]> {
-  const genAI = new GoogleGenerativeAI(getApiKey());
-  const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+async function tryWithRetry<T>(
+  fn: () => Promise<T>,
+  options: { maxRetries?: number; baseDelay?: number } = {}
+): Promise<T> {
+  const { maxRetries = 3, baseDelay = 1000 } = options;
+  let lastError: Error | undefined;
 
-  const result = await model.embedContent(text);
-  const embedding = result.embedding.values;
-  
-  // Truncate to 768 dimensions using Matryoshka Representation Learning
-  // gemini-embedding-001 outputs 3072 dims but supports truncation without quality loss
-  return embedding.slice(0, 768);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastError = err;
+      const status = err.status ?? err.code;
+      const is429 = status === 429 || (err.message && err.message.includes("429"));
+      if (is429 && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * baseDelay;
+        console.warn(`Gemini rate limited (429). Retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+        await sleep(delay);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError || new Error("Failed after retries");
 }
 
-export async function generateLinkedInPost(options: {
-  idea: string;
-  ideaDescription?: string;
-  stylePrompt: string;
-  articles: Array<{ title: string; content: string; url: string }>;
-}): Promise<string> {
+export async function generateEmbedding(text: string): Promise<number[]> {
+  return tryWithRetry(async () => {
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+    const result = await model.embedContent(text);
+    const embedding = result.embedding.values;
+    // Truncate to 768 dimensions using Matryoshka Representation Learning
+    return embedding.slice(0, 768);
+  });
+}
+
+async function generateWithModel(
+  options: {
+    idea: string;
+    ideaDescription?: string;
+    stylePrompt: string;
+    articles: Array<{ title: string; content: string; url: string }>;
+  },
+  modelName: string
+): Promise<string> {
   const genAI = new GoogleGenerativeAI(getApiKey());
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const model = genAI.getGenerativeModel({ model: modelName });
 
   const articleContext = options.articles
     .map(
@@ -83,4 +116,31 @@ Write a LinkedIn post about this idea, using the reference articles for context 
   });
 
   return result.response.text() ?? "";
+}
+
+export async function generateLinkedInPost(options: {
+  idea: string;
+  ideaDescription?: string;
+  stylePrompt: string;
+  articles: Array<{ title: string; content: string; url: string }>;
+}): Promise<string> {
+  // Try models in order: flash-lite (higher free quota) -> flash (better quality)
+  const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash"];
+  let lastError: Error | undefined;
+
+  for (const modelName of models) {
+    try {
+      return await tryWithRetry(
+        () => generateWithModel(options, modelName),
+        { maxRetries: 2, baseDelay: 2000 }
+      );
+    } catch (err: any) {
+      lastError = err;
+      const is429 = err.status === 429 || (err.message && err.message.includes("429"));
+      if (!is429) throw err; // Non-retryable error
+      console.warn(`Model ${modelName} rate limited. Trying fallback...`);
+    }
+  }
+
+  throw lastError || new Error("All Gemini models exhausted their free-tier quota. Try again tomorrow.");
 }
