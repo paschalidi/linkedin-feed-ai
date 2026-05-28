@@ -1,26 +1,34 @@
 import { createClient } from "@/lib/supabase/server";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ArrowRight } from "lucide-react";
+import { FileText, ArrowRight, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
 export default async function PostsPage() {
   const supabase = await createClient();
-  const { data: posts, error } = await supabase
-    .from("generated_posts")
-    .select("*, daily_ideas(title)")
-    .order("created_at", { ascending: false });
 
-  if (error) throw error;
+  let posts: any[] = [];
+  let dbError: string | null = null;
+
+  try {
+    const { data: postsData, error } = await supabase
+      .from("generated_posts")
+      .select("*, daily_ideas(title)")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Posts error:", error.message);
+      dbError = "Database tables not found. Run supabase/setup.sql.";
+    } else {
+      posts = postsData || [];
+    }
+  } catch (err: any) {
+    console.error("Posts exception:", err);
+    dbError = "Database connection issue.";
+  }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <div>
         <h1 className="text-4xl font-bold tracking-tight">Generated Posts</h1>
         <p className="text-muted-foreground mt-1 text-lg">
@@ -28,18 +36,31 @@ export default async function PostsPage() {
         </p>
       </div>
 
+      {dbError && (
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:bg-yellow-950 dark:border-yellow-800">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Database Setup Required
+              </p>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                {dbError}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Post History</CardTitle>
-          <CardDescription>
-            {posts?.length || 0} post{posts?.length !== 1 ? "s" : ""} generated
-          </CardDescription>
+          <CardTitle>Post History</CardTitle>
         </CardHeader>
         <CardContent>
           {(!posts || posts.length === 0) ? (
-            <div className="text-center py-10">
-              <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-5" />
-              <p className="text-muted-foreground text-lg">
+            <div className="text-center py-8">
+              <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-base text-muted-foreground">
                 No posts generated yet.
               </p>
               <p className="text-base text-muted-foreground mt-1">
@@ -51,7 +72,7 @@ export default async function PostsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {posts.map((post: any) => (
                 <Link
                   key={post.id}

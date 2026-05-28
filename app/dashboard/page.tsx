@@ -1,24 +1,39 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles, ClipboardList, ArrowRight } from "lucide-react";
+import { Plus, Sparkles, ClipboardList, ArrowRight, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const { data: ideas } = await supabase
-    .from("daily_ideas")
-    .select("*")
-    .eq("status", "draft")
-    .order("created_at", { ascending: false })
-    .limit(5);
+  let ideas: any[] = [];
+  let posts: any[] = [];
+  let dbError: string | null = null;
 
-  const { data: posts } = await supabase
-    .from("generated_posts")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(5);
+  try {
+    const { data: ideasData } = await supabase
+      .from("daily_ideas")
+      .select("*")
+      .eq("status", "draft")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    ideas = ideasData || [];
+  } catch (err: any) {
+    console.error("Dashboard ideas error:", err);
+    dbError = "Database connection issue. Make sure tables are created.";
+  }
+
+  try {
+    const { data: postsData } = await supabase
+      .from("generated_posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    posts = postsData || [];
+  } catch (err: any) {
+    console.error("Dashboard posts error:", err);
+  }
 
   const draftCount = ideas?.length || 0;
   const pendingReview = posts?.filter((p) => p.status === "draft").length || 0;
@@ -33,6 +48,22 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      {dbError && (
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:bg-yellow-950 dark:border-yellow-800">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Database Setup Required
+              </p>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                {dbError} Run the SQL in <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">supabase/setup.sql</code>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-5 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
@@ -44,7 +75,7 @@ export default async function DashboardPage() {
               Waiting to be written
             </p>
             <Link href="/ideas">
-              <Button className="mt-5 w-full">
+              <Button className="mt-4 w-full" size="default">
                 <Plus className="h-5 w-5 mr-2" />
                 Add Idea
               </Button>
@@ -62,7 +93,7 @@ export default async function DashboardPage() {
               Posts to review
             </p>
             <Link href="/posts">
-              <Button className="mt-5 w-full" variant="secondary">
+              <Button className="mt-4 w-full" variant="secondary" size="default">
                 <ClipboardList className="h-5 w-5 mr-2" />
                 Review
               </Button>
@@ -80,7 +111,7 @@ export default async function DashboardPage() {
               Approved posts
             </p>
             <Link href="/compose">
-              <Button className="mt-5 w-full" variant="outline">
+              <Button className="mt-4 w-full" variant="outline" size="default">
                 <Sparkles className="h-5 w-5 mr-2" />
                 Generate
               </Button>
@@ -89,10 +120,10 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Recent Ideas</CardTitle>
+            <CardTitle>Recent Ideas</CardTitle>
           </CardHeader>
           <CardContent>
             {(!ideas || ideas.length === 0) ? (
@@ -125,7 +156,7 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Recent Posts</CardTitle>
+            <CardTitle>Recent Posts</CardTitle>
           </CardHeader>
           <CardContent>
             {(!posts || posts.length === 0) ? (
@@ -144,7 +175,7 @@ export default async function DashboardPage() {
                       <p className="text-base line-clamp-2">
                         {post.final_content || post.draft_content}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {post.status} · {new Date(post.created_at).toLocaleDateString()}
                       </p>
                     </div>
