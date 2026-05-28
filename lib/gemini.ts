@@ -14,11 +14,12 @@ function getApiKey(): string {
 }
 
 /**
- * Convert a JavaScript number array to a PostgreSQL vector literal string.
- * pgvector expects: {0.1,0.2,0.3}
+ * Convert a JavaScript number array to a pgvector text literal string.
+ * pgvector text input format: [0.1,0.2,0.3]
+ * @see https://github.com/pgvector/pgvector/blob/master/README.md
  */
 export function formatEmbeddingForPostgres(embedding: number[]): string {
-  return "{" + embedding.join(",") + "}";
+  return "[" + embedding.join(",") + "]";
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {
