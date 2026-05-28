@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ensureDevUser } from "./dev-login";
 
 const COOLDOWN_SECONDS = 60;
 const STORAGE_KEY = "magic_link_last_sent";
@@ -13,35 +14,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  const [isDevMode, setIsDevMode] = useState(false);
 
-  // Check for existing cooldown on mount
-  useEffect(() => {
-    const lastSent = localStorage.getItem(STORAGE_KEY);
-    if (lastSent) {
-      const elapsed = Math.floor((Date.now() - parseInt(lastSent)) / 1000);
-      const remaining = Math.max(0, COOLDOWN_SECONDS - elapsed);
-      if (remaining > 0) {
-        setCooldown(remaining);
-      }
-    }
-  }, []);
-
-  // Countdown timer
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setInterval(() => {
-      setCooldown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [cooldown]);
-
-  const handleLogin = useCallback(async (e: React.FormEvent) => {
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (cooldown > 0) {
@@ -78,51 +53,139 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  }, [email, cooldown]);
+  };
+
+  const handleDevLogin = async () => {
+    setLoading(true);
+    setMessage("Setting up dev environment...");
+
+    try {
+      // Ensure dev user exists (server action with service role key)
+      const { email: devEmail, password: devPassword } = await ensureDevUser();
+
+      setMessage("Dev user ready. Signing in...");
+
+      // Sign in with the dev credentials
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: devEmail,
+        password: devPassword,
+      });
+
+      if (error) {
+        throw new Error(`Sign in failed: ${error.message}`);
+      }
+
+      if (data.session) {
+        window.location.href = "/dashboard";
+      }
+    } catch (error: any) {
+      setMessage(error.message || "Dev login failed. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/50">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">LinkedIn Feed AI</CardTitle>
-          <CardDescription>Sign in with your email</CardDescription>
+          <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <Input
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-            />
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={loading || cooldown > 0}
-            >
-              {loading 
-                ? "Sending..." 
-                : cooldown > 0 
-                  ? `Wait ${cooldown}s` 
-                  : "Send Magic Link"
-              }
-            </Button>
-            {message && (
-              <p className={`text-sm text-center ${
-                message.includes("sent") 
-                  ? "text-green-600" 
-                  : "text-destructive"
-              }`}>
-                {message}
+          {!isDevMode ? (
+            <form onSubmit={handleMagicLink} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || cooldown > 0}
+              >
+                {loading 
+                  ? "Sending..." 
+                  : cooldown > 0 
+                    ? `Wait ${cooldown}s` 
+                    : "Send Magic Link"
+                }
+              </Button>
+              {message && (
+                <p className={`text-sm text-center ${
+                  message.includes("sent") || message.includes("ready")
+                    ? "text-green-600" 
+                    : "text-destructive"
+                }`}>
+                  {message}
+                </p>
+              )}
+              <p className="text-xs text-center text-muted-foreground">
+                We&apos;ll email you a magic link to sign in instantly.
+                No password needed.
               </p>
-            )}
-            <p className="text-xs text-center text-muted-foreground">
-              We&apos;ll email you a magic link to sign in instantly.
-              No password needed.
-            </p>
-          </form>
+              <div className="pt-2 border-t">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full text-xs text-muted-foreground"
+                  onClick={() => {
+                    setIsDevMode(true);
+                    setMessage("");
+                  }}
+                >
+                  Developer Login (skip email)
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-muted rounded-lg p-4 text-sm space-y-2">
+                <p className="font-medium">Development Mode</p>
+                <p className="text-muted-foreground">
+                  Skip email verification and log in with a test account.
+                  Creates the user automatically if it doesn&apos;t exist.
+                </p>
+              </div>
+              
+              <Button 
+                onClick={handleDevLogin} 
+                className="w-full" 
+                disabled={loading}
+              >
+                {loading ? "Logging in..." : "Dev Login"}
+              </Button>
+
+              {message && (
+                <p className={`text-sm text-center ${
+                  message.includes("ready") || message.includes("Signing")
+                    ? "text-green-600" 
+                    : "text-destructive"
+                }`}>
+                  {message}
+                </p>
+              )}
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-xs text-muted-foreground"
+                onClick={() => {
+                  setIsDevMode(false);
+                  setMessage("");
+                }}
+              >
+                Back to Magic Link
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
