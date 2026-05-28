@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { fetchArticleText } from "@/lib/article-extractor";
-import { generateEmbedding } from "@/lib/gemini";
+import { generateEmbedding, formatEmbeddingForPostgres } from "@/lib/gemini";
 
 export async function ingestArticle(sourceId: string, url: string) {
   const supabase = await createClient();
@@ -13,6 +13,7 @@ export async function ingestArticle(sourceId: string, url: string) {
 
   // Generate embedding (768 dims from gemini-embedding-001 with Matryoshka truncation)
   const embedding = await generateEmbedding(content);
+  const embeddingLiteral = formatEmbeddingForPostgres(embedding);
 
   // Store in database using raw SQL since Prisma doesn't natively support vector types
   const result = await prisma.$queryRaw<{ id: string }[]>`
@@ -22,7 +23,7 @@ export async function ingestArticle(sourceId: string, url: string) {
       ${title},
       ${url},
       ${content},
-      ${embedding}::vector(768),
+      ${embeddingLiteral}::vector(768),
       NOW()
     )
     RETURNING id

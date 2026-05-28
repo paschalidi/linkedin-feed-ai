@@ -13,6 +13,14 @@ function getApiKey(): string {
   return apiKey;
 }
 
+/**
+ * Convert a JavaScript number array to a PostgreSQL vector literal string.
+ * pgvector expects: {0.1,0.2,0.3}
+ */
+export function formatEmbeddingForPostgres(embedding: number[]): string {
+  return "{" + embedding.join(",") + "}";
+}
+
 export async function generateEmbedding(text: string): Promise<number[]> {
   const genAI = new GoogleGenerativeAI(getApiKey());
   const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
