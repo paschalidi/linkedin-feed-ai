@@ -28,7 +28,7 @@ export async function generateLinkedInPost(options: {
   articles: Array<{ title: string; content: string; url: string }>;
 }): Promise<string> {
   const genAI = new GoogleGenerativeAI(getApiKey());
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   const articleContext = options.articles
     .map(
