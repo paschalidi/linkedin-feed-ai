@@ -102,7 +102,15 @@ async function runMigrations() {
   } catch (err: any) {
     console.error("\n❌ Database connection failed:");
     console.error(err.message);
-    console.error("\nMake sure your SUPABASE_DATABASE_URL is correct.");
+    console.error("\n💡 This usually means one of:");
+    console.error("   1. You're using the direct connection (IPv6-only) on an IPv4 network");
+    console.error("   2. The host address is wrong");
+    console.error("\n🛠️  Fix: Use the Session Pooler connection instead:");
+    console.error("   1. Go to https://supabase.com/dashboard/project/_/settings/database");
+    console.error("   2. Switch to the 'Session Pooler' tab");
+    console.error("   3. Copy the connection string (ends with :6543, not :5432)");
+    console.error("   4. Update SUPABASE_DATABASE_URL in your .env.local");
+    console.error("\n📄 Current URL:", databaseUrl?.replace(/:[^:]*@/, ":****@") || "not set");
     process.exit(1);
   } finally {
     await client.end();
