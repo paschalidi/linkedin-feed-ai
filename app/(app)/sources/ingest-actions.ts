@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { fetchArticleText } from "@/lib/article-extractor";
-import { generateEmbedding } from "@/lib/openai";
+import { generateEmbedding } from "@/lib/gemini";
 
 export async function ingestArticle(sourceId: string, url: string) {
   const supabase = await createClient();

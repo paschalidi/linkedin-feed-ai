@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { generateEmbedding, generateLinkedInPost } from "@/lib/openai";
+import { generateEmbedding, generateLinkedInPost } from "@/lib/gemini";
 
 export async function getIdeasForCompose() {
   try {

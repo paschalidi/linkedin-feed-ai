@@ -1,26 +1,24 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 function getApiKey(): string {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "OPENAI_API_KEY is not set.\n\n" +
-      "To generate posts, add your OpenAI API key to .env.local:\n" +
-      "OPENAI_API_KEY=sk-...\n\n" +
-      "Get one at: https://platform.openai.com/api-keys"
+      "GEMINI_API_KEY is not set.\n\n" +
+      "To generate posts, add your Gemini API key to .env.local:\n" +
+      "GEMINI_API_KEY=your-key-here\n\n" +
+      "Get one at: https://aistudio.google.com/app/apikey"
     );
   }
   return apiKey;
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const openai = new OpenAI({ apiKey: getApiKey() });
+  const genAI = new GoogleGenerativeAI(getApiKey());
+  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
-  const response = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: text,
-  });
-  return response.data[0].embedding;
+  const result = await model.embedContent(text);
+  return result.embedding.values;
 }
 
 export async function generateLinkedInPost(options: {
@@ -29,7 +27,8 @@ export async function generateLinkedInPost(options: {
   stylePrompt: string;
   articles: Array<{ title: string; content: string; url: string }>;
 }): Promise<string> {
-  const openai = new OpenAI({ apiKey: getApiKey() });
+  const genAI = new GoogleGenerativeAI(getApiKey());
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const articleContext = options.articles
     .map(
@@ -61,15 +60,14 @@ ${articleContext}
 
 Write a LinkedIn post about this idea, using the reference articles for context and facts. Do not copy-paste from the articles — synthesize and add your own perspective.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.8,
-    max_tokens: 800,
+  const result = await model.generateContent({
+    systemInstruction: systemPrompt,
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    generationConfig: {
+      temperature: 0.8,
+      maxOutputTokens: 800,
+    },
   });
 
-  return response.choices[0].message.content ?? "";
+  return result.response.text() ?? "";
 }

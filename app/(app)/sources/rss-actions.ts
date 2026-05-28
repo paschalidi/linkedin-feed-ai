@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchRSSFeed, filterRecentItems } from "@/lib/rss-parser";
 import { fetchArticleText } from "@/lib/article-extractor";
-import { generateEmbedding } from "@/lib/openai";
+import { generateEmbedding } from "@/lib/gemini";
 
 export async function syncRSSFeed(sourceId: string, feedUrl: string) {
   const supabase = await createClient();
