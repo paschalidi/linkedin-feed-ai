@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Client } from "pg";
 import * as fs from "fs";
 import * as path from "path";
