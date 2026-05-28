@@ -26,7 +26,7 @@ import { Lightbulb, Palette, Sparkles, AlertCircle } from "lucide-react";
 export default async function ComposePage({
   searchParams,
 }: {
-  searchParams: Promise<{ idea?: string }>;
+  searchParams: Promise<{ idea?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const ideas = await getIdeasForCompose();
@@ -34,6 +34,7 @@ export default async function ComposePage({
   const allStyles = await getAllStyleProfiles();
 
   const preselectedIdea = params.idea;
+  const error = params.error;
 
   return (
     <div className="space-y-10">
@@ -43,6 +44,22 @@ export default async function ComposePage({
           Generate a LinkedIn post from an idea and your sources
         </p>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:bg-red-950 dark:border-red-800">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                Generation Failed
+              </p>
+              <p className="text-sm text-red-700 dark:text-red-300 whitespace-pre-line">
+                {decodeURIComponent(error)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {ideas.length === 0 ? (
         <Card>
@@ -63,9 +80,14 @@ export default async function ComposePage({
         <form
           action={async (formData) => {
             "use server";
-            const result = await composePost(formData);
-            revalidatePath("/posts");
-            redirect(`/posts/${result.post.id}`);
+            try {
+              const result = await composePost(formData);
+              revalidatePath("/posts");
+              redirect(`/posts/${result.post.id}`);
+            } catch (err: any) {
+              const message = err?.message || "Failed to compose post";
+              redirect(`/compose?error=${encodeURIComponent(message)}`);
+            }
           }}
           className="space-y-8"
         >

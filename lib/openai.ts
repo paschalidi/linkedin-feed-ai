@@ -1,12 +1,20 @@
 import OpenAI from "openai";
 
-export async function generateEmbedding(text: string): Promise<number[]> {
+function getApiKey(): string {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not set");
+    throw new Error(
+      "OPENAI_API_KEY is not set.\n\n" +
+      "To generate posts, add your OpenAI API key to .env.local:\n" +
+      "OPENAI_API_KEY=sk-...\n\n" +
+      "Get one at: https://platform.openai.com/api-keys"
+    );
   }
+  return apiKey;
+}
 
-  const openai = new OpenAI({ apiKey });
+export async function generateEmbedding(text: string): Promise<number[]> {
+  const openai = new OpenAI({ apiKey: getApiKey() });
 
   const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
@@ -21,12 +29,7 @@ export async function generateLinkedInPost(options: {
   stylePrompt: string;
   articles: Array<{ title: string; content: string; url: string }>;
 }): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not set");
-  }
-
-  const openai = new OpenAI({ apiKey });
+  const openai = new OpenAI({ apiKey: getApiKey() });
 
   const articleContext = options.articles
     .map(
