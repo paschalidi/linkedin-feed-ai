@@ -11,7 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, Plus, Archive, Sparkles } from "lucide-react";
+import { Lightbulb, Plus, Archive, Sparkles, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default async function IdeasPage() {
   const ideas = await getIdeas();
@@ -70,18 +71,12 @@ export default async function IdeasPage() {
             </form>
 
             <div className="mt-4 pt-4 border-t">
-              <form
-                action={async () => {
-                  "use server";
-                  // Surprise Me — will be implemented in Ticket 9
-                  console.log("Surprise Me clicked");
-                }}
-              >
-                <Button variant="secondary" className="w-full" type="submit">
+              <Link href="/compose">
+                <Button variant="secondary" className="w-full">
                   <Sparkles className="h-4 w-4 mr-2" />
                   Surprise Me
                 </Button>
-              </form>
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -122,9 +117,12 @@ export default async function IdeasPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
-                        Generate
-                      </Button>
+                      <Link href={`/compose?idea=${idea.id}`}>
+                        <Button variant="default" size="sm">
+                          Generate
+                          <ArrowRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </Link>
                       <form
                         action={async () => {
                           "use server";
