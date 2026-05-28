@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 import { fetchRSSFeed, filterRecentItems } from "@/lib/rss-parser";
 import { fetchArticleText } from "@/lib/article-extractor";
 import { generateEmbedding } from "@/lib/gemini";
@@ -35,17 +36,21 @@ export async function syncRSSFeed(sourceId: string, feedUrl: string) {
       try {
         const { title, content } = await fetchArticleText(item.link);
         
-        // Generate embedding
+        // Generate embedding (768 dims from gemini-embedding-001 with Matryoshka truncation)
         const embedding = await generateEmbedding(content);
 
-        // Store in database
-        await supabase.from("articles").insert({
-          source_id: sourceId,
-          title: title || item.title,
-          url: item.link,
-          content,
-          embedding: JSON.stringify(embedding),
-        });
+        // Store in database using raw SQL since Prisma doesn't natively support vector types
+        await prisma.$executeRaw`
+          INSERT INTO articles (source_id, title, url, content, embedding, created_at)
+          VALUES (
+            ${sourceId},
+            ${title || item.title},
+            ${item.link},
+            ${content},
+            ${embedding}::vector(768),
+            NOW()
+          )
+        `;
 
         ingestedCount++;
       } catch (error) {

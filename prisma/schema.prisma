@@ -1,9 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 model NewsletterSource {
@@ -25,7 +27,7 @@ model Article {
   title           String
   url             String
   content         String
-  embedding       String?            @db.Text // Stored as JSON string of vector
+  embedding       Unsupported("vector(768)")?
   createdAt       DateTime           @default(now()) @map("created_at")
   dailyIdeas      DailyIdea[]
 

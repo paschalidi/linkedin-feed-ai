@@ -15,10 +15,14 @@ function getApiKey(): string {
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   const genAI = new GoogleGenerativeAI(getApiKey());
-  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+  const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
   const result = await model.embedContent(text);
-  return result.embedding.values;
+  const embedding = result.embedding.values;
+  
+  // Truncate to 768 dimensions using Matryoshka Representation Learning
+  // gemini-embedding-001 outputs 3072 dims but supports truncation without quality loss
+  return embedding.slice(0, 768);
 }
 
 export async function generateLinkedInPost(options: {

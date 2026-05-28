@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 import { fetchArticleText } from "@/lib/article-extractor";
 import { generateEmbedding } from "@/lib/gemini";
 
@@ -10,23 +11,24 @@ export async function ingestArticle(sourceId: string, url: string) {
   // Fetch and extract article text
   const { title, content } = await fetchArticleText(url);
 
-  // Generate embedding
+  // Generate embedding (768 dims from gemini-embedding-001 with Matryoshka truncation)
   const embedding = await generateEmbedding(content);
 
-  // Store in database
-  const { data, error } = await supabase
-    .from("articles")
-    .insert({
-      source_id: sourceId,
-      title,
-      url,
-      content,
-      embedding: JSON.stringify(embedding),
-    })
-    .select()
-    .single();
+  // Store in database using raw SQL since Prisma doesn't natively support vector types
+  const result = await prisma.$queryRaw<{ id: string }[]>`
+    INSERT INTO articles (source_id, title, url, content, embedding, created_at)
+    VALUES (
+      ${sourceId},
+      ${title},
+      ${url},
+      ${content},
+      ${embedding}::vector(768),
+      NOW()
+    )
+    RETURNING id
+  `;
 
-  if (error) throw error;
+  const articleId = result[0].id;
 
   // Update source last_fetched_at
   await supabase
@@ -34,7 +36,7 @@ export async function ingestArticle(sourceId: string, url: string) {
     .update({ last_fetched_at: new Date().toISOString() })
     .eq("id", sourceId);
 
-  return data;
+  return { id: articleId, source_id: sourceId, title, url, content };
 }
 
 export async function getArticlesBySource(sourceId: string) {
