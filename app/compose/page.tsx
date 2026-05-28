@@ -36,10 +36,10 @@ export default async function ComposePage({
   const preselectedIdea = params.idea;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Composer</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-4xl font-bold tracking-tight">Composer</h1>
+        <p className="text-muted-foreground mt-1 text-lg">
           Generate a LinkedIn post from an idea and your sources
         </p>
       </div>
@@ -47,8 +47,8 @@ export default async function ComposePage({
       {ideas.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center gap-3 text-muted-foreground">
-              <AlertCircle className="h-5 w-5" />
+            <div className="flex items-center gap-3 text-muted-foreground text-base">
+              <AlertCircle className="h-6 w-6" />
               <p>
                 No draft ideas available.{" "}
                 <a href="/ideas" className="underline">
@@ -67,14 +67,14 @@ export default async function ComposePage({
             revalidatePath("/posts");
             redirect(`/posts/${result.post.id}`);
           }}
-          className="space-y-6"
+          className="space-y-8"
         >
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-8 lg:grid-cols-2">
             {/* Idea Selection */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Lightbulb className="h-6 w-6" />
                   Select Idea
                 </CardTitle>
                 <CardDescription>
@@ -86,16 +86,16 @@ export default async function ComposePage({
                   name="idea_id"
                   defaultValue={preselectedIdea || ideas[0]?.id}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="text-base">
                     <SelectValue placeholder="Choose an idea" />
                   </SelectTrigger>
                   <SelectContent>
                     {ideas.map((idea) => (
                       <SelectItem key={idea.id} value={idea.id}>
                         <div className="flex flex-col">
-                          <span>{idea.title}</span>
+                          <span className="text-base">{idea.title}</span>
                           {idea.description && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[300px]">
+                            <span className="text-sm text-muted-foreground truncate max-w-[300px]">
                               {idea.description}
                             </span>
                           )}
@@ -110,8 +110,8 @@ export default async function ComposePage({
             {/* Style Profile Selection */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Palette className="h-6 w-6" />
                   Writing Style
                 </CardTitle>
                 <CardDescription>
@@ -123,16 +123,16 @@ export default async function ComposePage({
                   name="style_profile_id"
                   defaultValue={activeStyle?.id || allStyles[0]?.id}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="text-base">
                     <SelectValue placeholder="Choose a style" />
                   </SelectTrigger>
                   <SelectContent>
                     {allStyles.map((style) => (
                       <SelectItem key={style.id} value={style.id}>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 text-base">
                           {style.name}
                           {style.is_active && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-sm text-muted-foreground">
                               (active)
                             </span>
                           )}
@@ -146,8 +146,8 @@ export default async function ComposePage({
           </div>
 
           <div className="flex justify-center">
-            <Button type="submit" size="lg" className="w-full max-w-md">
-              <Sparkles className="h-5 w-5 mr-2" />
+            <Button type="submit" size="lg" className="w-full max-w-md text-lg">
+              <Sparkles className="h-6 w-6 mr-2" />
               Generate LinkedIn Post
             </Button>
           </div>

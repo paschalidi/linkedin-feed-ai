@@ -22,19 +22,19 @@ export default async function StylesPage() {
   const profiles = await getStyleProfiles();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Style Profiles</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-4xl font-bold tracking-tight">Style Profiles</h1>
+        <p className="text-muted-foreground mt-1 text-lg">
           Define how the AI should write your LinkedIn posts
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-10 lg:grid-cols-2">
         {/* Add Profile Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Create Style Profile</CardTitle>
+            <CardTitle className="text-xl">Create Style Profile</CardTitle>
             <CardDescription>
               Describe your voice and tone in natural language
             </CardDescription>
@@ -46,19 +46,19 @@ export default async function StylesPage() {
                 await addStyleProfile(formData);
                 revalidatePath("/styles");
               }}
-              className="space-y-4"
+              className="space-y-5"
             >
               <div className="space-y-2">
-                <label className="text-sm font-medium">Profile Name</label>
+                <label className="text-base font-medium">Profile Name</label>
                 <Input name="name" placeholder="e.g., My Professional Voice" required />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Style Description</label>
+                <label className="text-base font-medium">Style Description</label>
                 <Textarea
                   name="prompt_text"
                   placeholder="Short paragraphs, confident tone, 3-5 bullet points per post, emojis only when demonstrating, always end with a question to drive engagement..."
-                  rows={6}
+                  rows={8}
                   required
                 />
               </div>
@@ -68,15 +68,15 @@ export default async function StylesPage() {
                   type="checkbox"
                   name="is_active"
                   id="is_active"
-                  className="rounded border-gray-300"
+                  className="rounded border-gray-300 h-5 w-5"
                 />
-                <label htmlFor="is_active" className="text-sm font-medium">
+                <label htmlFor="is_active" className="text-base font-medium">
                   Set as active profile
                 </label>
               </div>
 
-              <Button type="submit" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button type="submit" className="w-full text-base">
+                <Plus className="h-5 w-5 mr-2" />
                 Create Profile
               </Button>
             </form>
@@ -86,29 +86,29 @@ export default async function StylesPage() {
         {/* Profiles List */}
         <Card>
           <CardHeader>
-            <CardTitle>Your Profiles</CardTitle>
+            <CardTitle className="text-xl">Your Profiles</CardTitle>
             <CardDescription>
               {profiles.length} profile{profiles.length !== 1 ? "s" : ""} saved
             </CardDescription>
           </CardHeader>
           <CardContent>
             {profiles.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 No style profiles yet. Create one to guide the AI&apos;s writing.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {profiles.map((profile) => (
                   <div
                     key={profile.id}
-                    className="rounded-lg border p-4 space-y-2"
+                    className="rounded-lg border p-5 space-y-3"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{profile.name}</span>
+                        <span className="font-medium text-base">{profile.name}</span>
                         {profile.is_active && (
                           <Badge variant="default">
-                            <Star className="h-3 w-3 mr-1" /> Active
+                            <Star className="h-4 w-4 mr-1" /> Active
                           </Badge>
                         )}
                       </div>
@@ -122,7 +122,7 @@ export default async function StylesPage() {
                             }}
                           >
                             <Button variant="ghost" size="sm" type="submit">
-                              <Star className="h-4 w-4 text-muted-foreground" />
+                              <Star className="h-5 w-5 text-muted-foreground" />
                             </Button>
                           </form>
                         )}
@@ -134,12 +134,12 @@ export default async function StylesPage() {
                           }}
                         >
                           <Button variant="ghost" size="icon" type="submit">
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            <Trash2 className="h-5 w-5 text-muted-foreground" />
                           </Button>
                         </form>
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-3">
+                    <p className="text-base text-muted-foreground line-clamp-3">
                       {profile.prompt_text}
                     </p>
                   </div>

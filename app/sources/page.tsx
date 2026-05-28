@@ -25,19 +25,19 @@ export default async function SourcesPage() {
   const articles = await getAllArticles();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-4xl font-bold tracking-tight">Sources</h1>
+        <p className="text-muted-foreground mt-1 text-lg">
           Manage newsletter feeds and LinkedIn profiles
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-10 lg:grid-cols-2">
         {/* Add Source Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Add Newsletter Source</CardTitle>
+            <CardTitle className="text-xl">Add Newsletter Source</CardTitle>
             <CardDescription>
               Paste a URL or add an RSS feed to ingest articles
             </CardDescription>
@@ -49,29 +49,29 @@ export default async function SourcesPage() {
                 await addSource(formData);
                 revalidatePath("/sources");
               }}
-              className="space-y-4"
+              className="space-y-5"
             >
               <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
+                <label className="text-base font-medium">Name</label>
                 <Input name="name" placeholder="e.g., TLDR AI Newsletter" required />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Type</label>
+                <label className="text-base font-medium">Type</label>
                 <Select name="type" defaultValue="manual">
-                  <SelectTrigger>
+                  <SelectTrigger className="text-base">
                     <SelectValue placeholder="Select source type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="manual">
-                      <div className="flex items-center gap-2">
-                        <Link2 className="h-4 w-4" />
+                      <div className="flex items-center gap-2 text-base">
+                        <Link2 className="h-5 w-5" />
                         Single Article URL
                       </div>
                     </SelectItem>
                     <SelectItem value="rss">
-                      <div className="flex items-center gap-2">
-                        <Rss className="h-4 w-4" />
+                      <div className="flex items-center gap-2 text-base">
+                        <Rss className="h-5 w-5" />
                         RSS Feed
                       </div>
                     </SelectItem>
@@ -80,7 +80,7 @@ export default async function SourcesPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">URL</label>
+                <label className="text-base font-medium">URL</label>
                 <Input
                   name="url"
                   type="url"
@@ -89,8 +89,8 @@ export default async function SourcesPage() {
                 />
               </div>
 
-              <Button type="submit" className="w-full">
-                <Newspaper className="h-4 w-4 mr-2" />
+              <Button type="submit" className="w-full text-base">
+                <Newspaper className="h-5 w-5 mr-2" />
                 Add Source
               </Button>
             </form>
@@ -100,35 +100,35 @@ export default async function SourcesPage() {
         {/* Sources List */}
         <Card>
           <CardHeader>
-            <CardTitle>Your Sources</CardTitle>
+            <CardTitle className="text-xl">Your Sources</CardTitle>
             <CardDescription>
               {sources.length} source{sources.length !== 1 ? "s" : ""} configured
             </CardDescription>
           </CardHeader>
           <CardContent>
             {sources.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 No sources yet. Add one to start ingesting articles.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {sources.map((source) => (
                   <div
                     key={source.id}
-                    className="rounded-lg border p-3 space-y-2"
+                    className="rounded-lg border p-4 space-y-3"
                   >
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{source.name}</span>
+                          <span className="font-medium text-base">{source.name}</span>
                           <Badge variant="secondary">
                             {source.type === "rss" ? (
-                              <span className="flex items-center gap-1">
-                                <Rss className="h-3 w-3" /> RSS
+                              <span className="flex items-center gap-1 text-sm">
+                                <Rss className="h-4 w-4" /> RSS
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1">
-                                <Link2 className="h-3 w-3" /> Manual
+                              <span className="flex items-center gap-1 text-sm">
+                                <Link2 className="h-4 w-4" /> Manual
                               </span>
                             )}
                           </Badge>
@@ -154,7 +154,7 @@ export default async function SourcesPage() {
                             }}
                           >
                             <Button variant="ghost" size="sm" type="submit">
-                              <Download className="h-4 w-4 text-muted-foreground" />
+                              <Download className="h-5 w-5 text-muted-foreground" />
                             </Button>
                           </form>
                         )}
@@ -166,7 +166,7 @@ export default async function SourcesPage() {
                           }}
                         >
                           <Button variant="ghost" size="icon" type="submit">
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            <Trash2 className="h-5 w-5 text-muted-foreground" />
                           </Button>
                         </form>
                       </div>
@@ -182,22 +182,22 @@ export default async function SourcesPage() {
       {/* Articles Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Ingested Articles</CardTitle>
+          <CardTitle className="text-xl">Ingested Articles</CardTitle>
           <CardDescription>
             {articles.length} article{articles.length !== 1 ? "s" : ""} stored in your vector DB
           </CardDescription>
         </CardHeader>
         <CardContent>
           {articles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               No articles ingested yet. Add a source and hit the download button to extract content.
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {articles.map((article) => (
-                <div key={article.id} className="rounded-lg border p-3 space-y-1">
-                  <p className="font-medium">{article.title}</p>
-                  <p className="text-xs text-muted-foreground truncate">
+                <div key={article.id} className="rounded-lg border p-4 space-y-2">
+                  <p className="font-medium text-base">{article.title}</p>
+                  <p className="text-sm text-muted-foreground truncate">
                     {article.url}
                   </p>
                   <p className="text-xs text-muted-foreground">

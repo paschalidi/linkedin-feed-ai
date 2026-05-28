@@ -30,11 +30,11 @@ export default async function PostDetailPage({
   const idea = post.daily_ideas;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center gap-4">
         <Link href="/posts">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+          <Button variant="ghost" size="default">
+            <ArrowLeft className="h-5 w-5 mr-2" />
             Back to Posts
           </Button>
         </Link>
@@ -42,7 +42,7 @@ export default async function PostDetailPage({
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-4xl font-bold tracking-tight">
             {idea?.title || "Generated Post"}
           </h1>
           <div className="flex items-center gap-2 mt-2">
@@ -57,18 +57,18 @@ export default async function PostDetailPage({
             >
               {post.status}
             </Badge>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-base text-muted-foreground">
               {new Date(post.created_at).toLocaleDateString()}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-8 lg:grid-cols-3">
         {/* Post Editor */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Draft</CardTitle>
+            <CardTitle className="text-xl">Draft</CardTitle>
             <CardDescription>
               Edit and finalize your LinkedIn post
             </CardDescription>
@@ -80,24 +80,25 @@ export default async function PostDetailPage({
                 await updatePost(formData);
                 revalidatePath(`/posts/${id}`);
               }}
-              className="space-y-4"
+              className="space-y-5"
             >
               <input type="hidden" name="id" value={post.id} />
               <Textarea
                 name="final_content"
                 defaultValue={post.final_content || post.draft_content}
                 rows={20}
-                className="font-mono text-sm leading-relaxed"
+                className="font-mono text-base leading-relaxed"
               />
 
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <Button
                   type="submit"
                   name="status"
                   value="approved"
                   variant="default"
+                  className="text-base"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" />
+                  <CheckCircle className="h-5 w-5 mr-2" />
                   Approve
                 </Button>
 
@@ -106,8 +107,9 @@ export default async function PostDetailPage({
                   name="status"
                   value="posted"
                   variant="secondary"
+                  className="text-base"
                 >
-                  <CopyCheck className="h-4 w-4 mr-2" />
+                  <CopyCheck className="h-5 w-5 mr-2" />
                   Mark as Posted
                 </Button>
 
@@ -120,17 +122,17 @@ export default async function PostDetailPage({
         {/* Meta Info */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Details</CardTitle>
+            <CardTitle className="text-xl">Details</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {idea && (
               <div>
-                <p className="text-sm font-medium">Original Idea</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base font-medium">Original Idea</p>
+                <p className="text-base text-muted-foreground">
                   {idea.title}
                 </p>
                 {idea.description && (
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-base text-muted-foreground mt-1">
                     {idea.description}
                   </p>
                 )}
@@ -138,16 +140,16 @@ export default async function PostDetailPage({
             )}
 
             <div>
-              <p className="text-sm font-medium">Word Count</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base font-medium">Word Count</p>
+              <p className="text-base text-muted-foreground">
                 {(post.final_content || post.draft_content).split(/\s+/).length}{" "}
                 words
               </p>
             </div>
 
             <div>
-              <p className="text-sm font-medium">Character Count</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base font-medium">Character Count</p>
+              <p className="text-base text-muted-foreground">
                 {(post.final_content || post.draft_content).length} characters
               </p>
             </div>
