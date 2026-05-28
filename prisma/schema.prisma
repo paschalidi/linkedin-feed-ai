@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model NewsletterSource {
+  id              String    @id @default(uuid())
+  name            String
+  type            String    // "rss" | "manual"
+  url             String?
+  lastFetchedAt   DateTime? @map("last_fetched_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  articles        Article[]
+
+  @@map("newsletter_sources")
+}
+
+model Article {
+  id              String             @id @default(uuid())
+  sourceId        String?            @map("source_id")
+  source          NewsletterSource?  @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  title           String
+  url             String
+  content         String
+  embedding       String?            @db.Text // Stored as JSON string of vector
+  createdAt       DateTime           @default(now()) @map("created_at")
+  dailyIdeas      DailyIdea[]
+
+  @@map("articles")
+}
+
+model StyleProfile {
+  id              String    @id @default(uuid())
+  name            String
+  promptText      String    @map("prompt_text")
+  isActive        Boolean   @default(false) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("style_profiles")
+}
+
+model LinkedInProfile {
+  id              String    @id @default(uuid())
+  profileUrl      String    @unique @map("profile_url")
+  displayName     String?   @map("display_name")
+  postsJson       String?   @map("posts_json") @db.Text
+  embedding       String?   @map("embedding") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("linkedin_profiles")
+}
+
+model DailyIdea {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  title           String
+  description     String?
+  sourceArticleId String?   @map("source_article_id")
+  sourceArticle   Article?  @relation(fields: [sourceArticleId], references: [id], onDelete: SetNull)
+  status          String    @default("draft") // "draft" | "used" | "archived"
+  createdAt       DateTime  @default(now()) @map("created_at")
+  generatedPosts  GeneratedPost[]
+
+  @@map("daily_ideas")
+}
+
+model GeneratedPost {
+  id              String    @id @default(uuid())
+  ideaId          String?   @map("idea_id")
+  idea            DailyIdea? @relation(fields: [ideaId], references: [id], onDelete: SetNull)
+  draftContent    String    @map("draft_content") @db.Text
+  finalContent    String?   @map("final_content") @db.Text
+  status          String    @default("draft") // "draft" | "approved" | "posted"
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("generated_posts")
+}

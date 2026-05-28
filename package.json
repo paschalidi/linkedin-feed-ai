@@ -9,8 +9,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:setup": "npx tsx scripts/setup-db.ts",
-    "db:reset": "npx tsx scripts/reset-db.ts"
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:pull": "prisma db pull",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -48,6 +51,7 @@
     "jsdom": "^29.1.1",
     "msw": "^2.14.6",
     "pg": "^8.21.0",
+    "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
