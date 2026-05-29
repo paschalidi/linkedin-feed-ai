@@ -95,39 +95,38 @@ export async function ingestArticle(sourceId: string, url: string) {
 }
 
 export async function getArticlesBySource(sourceId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("articles")
-    .select("*")
-    .eq("source_id", sourceId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data;
+  const articles = await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
+    `SELECT id, source_id, title, url, content, excerpt, author, published_at, 
+            content_hash, canonical_url, site_name, char_count, extraction_method, created_at
+     FROM articles WHERE source_id = $1 ORDER BY created_at DESC`,
+    sourceId
+  );
+  return articles;
 }
 
 export async function getAllArticles() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("articles")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data;
+  const articles = await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
+    `SELECT id, source_id, title, url, content, excerpt, author, published_at,
+            content_hash, canonical_url, site_name, char_count, extraction_method, created_at
+     FROM articles ORDER BY created_at DESC`
+  );
+  return articles;
 }
 
 export async function getArticlesPage(page: number, limit: number = 100) {
-  const supabase = await createClient();
-  const from = (page - 1) * limit;
-  const to = from + limit - 1;
-
-  const { data, error, count } = await supabase
-    .from("articles")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  if (error) throw error;
-  return { articles: data || [], totalCount: count || 0 };
+  const offset = (page - 1) * limit;
+  
+  const articles = await prisma.$queryRawUnsafe<Array<Record<string, any>>>(
+    `SELECT id, source_id, title, url, content, excerpt, author, published_at,
+            content_hash, canonical_url, site_name, char_count, extraction_method, created_at
+     FROM articles ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+    limit,
+    offset
+  );
+  
+  const countResult = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+    `SELECT COUNT(*) as count FROM articles`
+  );
+  
+  return { articles, totalCount: Number(countResult[0].count) };
 }

@@ -287,3 +287,117 @@ export function computeContentHash(content: string): string {
     .slice(0, 1000);
   return createHash("sha256").update(normalized).digest("hex");
 }
+
+// ---------------------------------------------------------------------------
+// Link extraction from newsletter issue pages
+// ---------------------------------------------------------------------------
+
+export interface ArticleLink {
+  url: string;
+  title: string;
+}
+
+const NON_ARTICLE_PATTERNS = [
+  // Social media / platforms
+  /twitter\.com/i,
+  /x\.com/i,
+  /facebook\.com/i,
+  /instagram\.com/i,
+  /linkedin\.com/i,
+  /youtube\.com/i,
+  /youtu\.be/i,
+  /tiktok\.com/i,
+  /reddit\.com/i,
+  /medium\.com\/@/i, // medium profiles, not articles
+  // Newsletter / subscription
+  /substack\.com\/(subscribe|archive|podcast)/i,
+  /mailchi\.mp/i,
+  /convertkit\.com/i,
+  /buttondown\.email/i,
+  /beehiiv\.com/i,
+  // Sponsors / ads
+  /sponsor/i,
+  /advertise/i,
+  /promo/i,
+  // Generic non-content
+  /unsubscribe/i,
+  /privacy-policy/i,
+  /terms-of-service/i,
+  /cdn\./i,
+  // Images
+  /\.(jpg|jpeg|png|gif|svg|webp|pdf|zip)$/i,
+];
+
+/**
+ * Check if a URL looks like a real article (not social, sponsor, image, etc.)
+ */
+function looksLikeArticleLink(url: string): boolean {
+  return !NON_ARTICLE_PATTERNS.some((pattern) => pattern.test(url));
+}
+
+/**
+ * Extract article links from a newsletter issue / roundup page.
+ *
+ * Uses Readability to get the main content, then finds all external
+ * <a> tags within it.  Filters out social media, sponsors, images, etc.
+ *
+ * Returns empty array if the page itself is a single article
+ * (no / few external links found).
+ */
+export async function extractArticleLinksFromPage(
+  url: string
+): Promise<ArticleLink[]> {
+  try {
+    const { html } = await fetchHtml(url);
+    const dom = new JSDOM(html, { url });
+    const readabilityResult = runReadability(dom);
+
+    if (!readabilityResult) {
+      return [];
+    }
+
+    // Parse the cleaned HTML to find links
+    const contentHtml = readabilityResult.content || "";
+    const cleanedDom = new JSDOM(contentHtml, { url });
+    const doc = cleanedDom.window.document;
+
+    const pageDomain = new URL(url).hostname;
+    const links = new Map<string, string>(); // dedup by URL
+
+    for (const anchor of doc.querySelectorAll("a[href]")) {
+      const href = anchor.getAttribute("href");
+      if (!href) continue;
+
+      // Resolve relative URLs
+      let resolvedUrl: string;
+      try {
+        resolvedUrl = new URL(href, url).href;
+      } catch {
+        continue;
+      }
+
+      // Skip same-domain links (these are usually navigation, "read more",
+      // or links to other issues on the same newsletter)
+      const linkDomain = new URL(resolvedUrl).hostname;
+      if (linkDomain === pageDomain) continue;
+
+      // Skip anchor-only links
+      if (resolvedUrl.startsWith("#")) continue;
+
+      // Skip non-article patterns
+      if (!looksLikeArticleLink(resolvedUrl)) continue;
+
+      const title = anchor.textContent?.trim() || resolvedUrl;
+      if (title.length < 3) continue; // skip empty / single-char links
+
+      links.set(resolvedUrl, title);
+    }
+
+    return Array.from(links.entries()).map(([url, title]) => ({
+      url,
+      title,
+    }));
+  } catch {
+    return [];
+  }
+}

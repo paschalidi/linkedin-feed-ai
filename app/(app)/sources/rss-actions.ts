@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { fetchRSSFeed, filterRecentItems, RSSItem } from "@/lib/rss-parser";
-import { extractArticle, computeContentHash } from "@/lib/article-extractor";
+import { extractArticle, extractArticleLinksFromPage, computeContentHash } from "@/lib/article-extractor";
 import { chunkArticle } from "@/lib/chunker";
 import { generateEmbedding, formatEmbeddingForPostgres } from "@/lib/gemini";
 
@@ -51,14 +51,26 @@ async function ingestSingleArticle(
       return { articleId: "", stored: false, reason: quality.reason };
     }
 
+    // URL dedup
+    const existingUrl = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM articles WHERE url = ${url} LIMIT 1
+    `;
+    if (existingUrl.length > 0) {
+      return {
+        articleId: existingUrl[0].id,
+        stored: false,
+        reason: "duplicate url",
+      };
+    }
+
     // Content-hash dedup
     const contentHash = computeContentHash(article.content);
-    const existing = await prisma.$queryRaw<Array<{ id: string }>>`
+    const existingHash = await prisma.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM articles WHERE content_hash = ${contentHash} LIMIT 1
     `;
-    if (existing.length > 0) {
+    if (existingHash.length > 0) {
       return {
-        articleId: existing[0].id,
+        articleId: existingHash[0].id,
         stored: false,
         reason: "duplicate content hash",
       };
@@ -122,6 +134,38 @@ async function ingestSingleArticle(
   }
 }
 
+/**
+ * Determine if an RSS item is a direct article or a link-roundup issue page.
+ *
+ * Heuristic:
+ *   1. If the RSS item has substantial content (>1000 chars), treat as direct article.
+ *   2. Otherwise, fetch the page and extract external article links.
+ *   3. If >= 3 external article links found → it's a roundup.
+ *   4. Otherwise → direct article.
+ */
+async function classifyItem(item: RSSItem, feedUrl: string): Promise<{
+  type: "direct" | "roundup";
+  links: Array<{ url: string; title: string }>;
+}> {
+  const itemLink = getItemLink(item, feedUrl);
+  const itemContent = item.content || item.description || "";
+
+  // Direct article: RSS already contains substantial content
+  if (itemContent.length > 1000) {
+    return { type: "direct", links: [{ url: itemLink, title: item.title }] };
+  }
+
+  // Might be a newsletter issue page — fetch and extract links
+  const articleLinks = await extractArticleLinksFromPage(itemLink);
+
+  if (articleLinks.length >= 3) {
+    return { type: "roundup", links: articleLinks };
+  }
+
+  // Fallback: treat as direct article
+  return { type: "direct", links: [{ url: itemLink, title: item.title }] };
+}
+
 export async function syncRSSFeed(
   sourceId: string,
   feedUrl: string,
@@ -139,7 +183,6 @@ export async function syncRSSFeed(
     const feed = await fetchRSSFeed(feedUrl);
 
     // On first sync, only grab recent items to avoid ingesting years of archives.
-    // On subsequent syncs, grab everything in the feed and dedupe by URL/hash.
     const items = options.isFirstSync
       ? filterRecentItems(feed.items, 30)
       : feed.items;
@@ -148,43 +191,81 @@ export async function syncRSSFeed(
     let skippedCount = 0;
     let failedCount = 0;
 
-    // Collect all URLs to check for duplicates in a single query
-    const links = items
+    // Collect all item URLs for batch duplicate check
+    const itemLinks = items
       .map((item) => getItemLink(item, feedUrl))
       .filter(Boolean);
     const existingArticles = await prisma.$queryRaw<Array<{ url: string }>>`
-      SELECT url FROM articles WHERE url = ANY(${links}::text[])
+      SELECT url FROM articles WHERE url = ANY(${itemLinks}::text[])
     `;
-
-    const existingUrls = new Set(
-      existingArticles.map((a) => a.url)
-    );
+    const existingUrls = new Set(existingArticles.map((a) => a.url));
 
     for (const item of items) {
-      const link = getItemLink(item, feedUrl);
-      if (!link) {
+      const itemLink = getItemLink(item, feedUrl);
+      if (!itemLink) {
         failedCount++;
         continue;
       }
 
-      if (existingUrls.has(link)) {
+      // Skip if the item URL itself is already in DB
+      if (existingUrls.has(itemLink)) {
         skippedCount++;
         continue;
       }
 
-      const result = await ingestSingleArticle(
-        link,
-        sourceId,
-        item.title
-      );
+      // Classify: direct article or roundup?
+      const classification = await classifyItem(item, feedUrl);
 
-      if (result.stored) {
-        ingestedCount++;
-        existingUrls.add(link); // prevent duplicate within same batch
-      } else if (result.reason?.includes("duplicate")) {
-        skippedCount++;
+      if (classification.type === "roundup") {
+        // Ingest each article link from the roundup
+        let roundupIngested = 0;
+        let roundupSkipped = 0;
+        let roundupFailed = 0;
+
+        for (const link of classification.links) {
+          if (existingUrls.has(link.url)) {
+            roundupSkipped++;
+            continue;
+          }
+
+          const result = await ingestSingleArticle(
+            link.url,
+            sourceId,
+            link.title
+          );
+
+          if (result.stored) {
+            roundupIngested++;
+            existingUrls.add(link.url);
+          } else if (result.reason?.includes("duplicate")) {
+            roundupSkipped++;
+          } else {
+            roundupFailed++;
+          }
+        }
+
+        ingestedCount += roundupIngested;
+        skippedCount += roundupSkipped;
+        failedCount += roundupFailed;
+
+        // Mark the issue page itself as "tracked" so we don't re-process it
+        existingUrls.add(itemLink);
       } else {
-        failedCount++;
+        // Direct article
+        const result = await ingestSingleArticle(
+          itemLink,
+          sourceId,
+          item.title
+        );
+
+        if (result.stored) {
+          ingestedCount++;
+          existingUrls.add(itemLink);
+        } else if (result.reason?.includes("duplicate")) {
+          skippedCount++;
+        } else {
+          failedCount++;
+        }
       }
     }
 

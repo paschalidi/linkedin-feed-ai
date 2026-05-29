@@ -6,20 +6,25 @@ const ssl = url?.includes("supabase.co") ? { rejectUnauthorized: false } : false
 const pool = new Pool({ connectionString: url, ssl });
 
 async function check() {
-  const articles = await pool.query("SELECT COUNT(*) as cnt FROM articles");
-  const chunks = await pool.query("SELECT COUNT(*) as cnt FROM article_chunks");
-  console.log("Articles:", articles.rows[0].cnt);
-  console.log("Chunks:", chunks.rows[0].cnt);
-  
-  const urls = await pool.query("SELECT url FROM articles LIMIT 5");
-  if (urls.rows.length > 0) {
-    console.log("URLs:", urls.rows.map(r => r.url));
-  }
-  
+  const { rows: sources } = await pool.query(
+    "SELECT id, name, type, url FROM newsletter_sources"
+  );
+  console.log("Sources:");
+  sources.forEach(s => console.log(`  - ${s.name} (${s.type}): ${s.url}`));
+
+  const { rows: counts } = await pool.query(
+    "SELECT source_id, COUNT(*) as cnt FROM articles WHERE source_id IS NOT NULL GROUP BY source_id"
+  );
+  console.log("\nArticles per source:");
+  counts.forEach(c => {
+    const source = sources.find(s => s.id === c.source_id);
+    console.log(`  - ${source?.name || c.source_id}: ${c.cnt}`);
+  });
+
+  const { rows: total } = await pool.query("SELECT COUNT(*) as cnt FROM articles");
+  console.log("\nTotal articles:", total[0].cnt);
+
   await pool.end();
 }
 
-check().catch(e => {
-  console.error(e.message);
-  process.exit(1);
-});
+check();
