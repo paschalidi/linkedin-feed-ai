@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getPost, updatePost, regeneratePost } from "../actions";
+import { getPost, updatePost } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,9 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CopyCheck, CheckCircle, ArrowLeft, RefreshCw } from "lucide-react";
+import { CopyCheck, CheckCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
+import { RegenerateButton } from "./regenerate-button";
+import { regenerateAndRefresh } from "./regenerate-action";
 
 export default async function PostDetailPage({
   params,
@@ -117,24 +119,10 @@ export default async function PostDetailPage({
               </div>
             </form>
 
-            {/* Regenerate is a separate action, not part of the edit form */}
-            <form
-              action={async () => {
-                "use server";
-                await regeneratePost(id);
-                revalidatePath(`/posts/${id}`);
-              }}
-              className="mt-4"
-            >
-              <Button
-                type="submit"
-                variant="outline"
-                className="text-base"
-              >
-                <RefreshCw className="h-5 w-5 mr-2" />
-                Regenerate
-              </Button>
-            </form>
+            {/* Regenerate is a separate client action with loading state */}
+            <div className="mt-4">
+              <RegenerateButton action={() => regenerateAndRefresh(id)} />
+            </div>
           </CardContent>
         </Card>
 
