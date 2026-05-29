@@ -135,13 +135,50 @@ async function ingestSingleArticle(
 }
 
 /**
+ * Extract article links from raw HTML content (e.g. from RSS content:encoded).
+ */
+function extractLinksFromHtml(html: string, baseUrl: string): Array<{ url: string; title: string }> {
+  const { JSDOM } = require("jsdom");
+  const dom = new JSDOM(html, { url: baseUrl });
+  const doc = dom.window.document;
+
+  const baseDomain = new URL(baseUrl).hostname;
+  const links = new Map<string, string>();
+
+  for (const anchor of doc.querySelectorAll("a[href]")) {
+    const href = anchor.getAttribute("href");
+    if (!href) continue;
+
+    let resolvedUrl: string;
+    try {
+      resolvedUrl = new URL(href, baseUrl).href;
+    } catch {
+      continue;
+    }
+
+    const linkDomain = new URL(resolvedUrl).hostname;
+    if (linkDomain === baseDomain) continue;
+    if (resolvedUrl.startsWith("#")) continue;
+    if (resolvedUrl.match(/\.(jpg|jpeg|png|gif|svg|webp|pdf|zip)$/i)) continue;
+
+    const title = anchor.textContent?.trim() || resolvedUrl;
+    if (title.length < 3) continue;
+
+    links.set(resolvedUrl, title);
+  }
+
+  return Array.from(links.entries()).map(([url, title]) => ({ url, title }));
+}
+
+/**
  * Determine if an RSS item is a direct article or a link-roundup issue page.
  *
  * Heuristic:
- *   1. If the RSS item has substantial content (>1000 chars), treat as direct article.
- *   2. Otherwise, fetch the page and extract external article links.
- *   3. If >= 3 external article links found → it's a roundup.
- *   4. Otherwise → direct article.
+ *   1. If RSS item has content, parse it for external article links.
+ *   2. If >= 3 external links found in content → it's a roundup.
+ *   3. Otherwise, fetch the page and extract links.
+ *   4. If >= 3 external links on the page → it's a roundup.
+ *   5. Otherwise → direct article.
  */
 async function classifyItem(item: RSSItem, feedUrl: string): Promise<{
   type: "direct" | "roundup";
@@ -150,12 +187,15 @@ async function classifyItem(item: RSSItem, feedUrl: string): Promise<{
   const itemLink = getItemLink(item, feedUrl);
   const itemContent = item.content || item.description || "";
 
-  // Direct article: RSS already contains substantial content
-  if (itemContent.length > 1000) {
-    return { type: "direct", links: [{ url: itemLink, title: item.title }] };
+  // If RSS provides content, check it first for article links
+  if (itemContent.length > 0 && itemContent.includes("<a ")) {
+    const contentLinks = extractLinksFromHtml(itemContent, itemLink);
+    if (contentLinks.length >= 3) {
+      return { type: "roundup", links: contentLinks };
+    }
   }
 
-  // Might be a newsletter issue page — fetch and extract links
+  // Fetch the page and extract links
   const articleLinks = await extractArticleLinksFromPage(itemLink);
 
   if (articleLinks.length >= 3) {
