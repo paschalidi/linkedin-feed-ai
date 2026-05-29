@@ -30,6 +30,7 @@ interface LinkedInProfile {
 interface LinkedInProfileListProps {
   profiles: LinkedInProfile[];
   onAdd: (url: string) => Promise<void>;
+  onStartScrape: (id: string) => Promise<void>;
   onResync: (id: string) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onGenerateFingerprint: () => Promise<void>;
@@ -71,6 +72,7 @@ function extractUsername(url: string): string {
 export default function LinkedInProfileList({
   profiles,
   onAdd,
+  onStartScrape,
   onResync,
   onRemove,
   onGenerateFingerprint,
@@ -82,6 +84,7 @@ export default function LinkedInProfileList({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [adding, startAdd] = useTransition();
+  const [startingScrapeId, setStartingScrapeId] = useState<string | null>(null);
   const [resyncingId, setResyncingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [generating, startGenerate] = useTransition();
@@ -168,13 +171,30 @@ export default function LinkedInProfileList({
         await onAdd(url);
         setUrl("");
         setSuccess(
-          "Scrape started! It can take 1–3 minutes. The profile will appear once posts are ready."
+          "Profile added! Click 'Fetch Posts' to start scraping."
         );
         router.refresh();
       } catch (err: any) {
         setError(err?.message || "Failed to add profile");
       }
     });
+  };
+
+  const handleStartScrape = async (id: string) => {
+    setError(null);
+    setStartingScrapeId(id);
+    try {
+      await onStartScrape(id);
+      setSuccess(
+        "Scrape started! It can take 1–3 minutes. Paste the dataset URL below if webhooks are not configured."
+      );
+      setScrapingIds((prev) => new Set(prev).add(id));
+      router.refresh();
+    } catch (err: any) {
+      setError(err?.message || "Failed to start scrape");
+    } finally {
+      setStartingScrapeId(null);
+    }
   };
 
   const handleResync = async (id: string) => {
@@ -324,6 +344,22 @@ export default function LinkedInProfileList({
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {/* Fetch Posts — shown when no posts and not scraping */}
+                    {(profile.postCount || 0) === 0 && !isScraping && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleStartScrape(profile.id)}
+                        disabled={startingScrapeId === profile.id}
+                      >
+                        {startingScrapeId === profile.id ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4 mr-1" />
+                        )}
+                        Fetch Posts
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -351,43 +387,40 @@ export default function LinkedInProfileList({
                   </div>
                 </div>
 
-                {/* Manual dataset fetch — shown for pending or as a collapsible option */}
-                {(isPending || isScraping) && (
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Scrape is running. If webhooks are not configured (e.g.,
-                      local dev), paste the Apify dataset URL here when the run
-                      finishes.
-                    </p>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="https://api.apify.com/v2/datasets/XXXX/items?token=..."
-                        value={datasetUrls[profile.id] || ""}
-                        onChange={(e) =>
-                          setDatasetUrls((prev) => ({
-                            ...prev,
-                            [profile.id]: e.target.value,
-                          }))
-                        }
-                        className="text-xs"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleFetchDataset(profile.id)}
-                        disabled={
-                          fetchingId === profile.id ||
-                          !datasetUrls[profile.id]?.trim()
-                        }
-                      >
-                        {fetchingId === profile.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Download className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
+                {/* Manual dataset fetch — always available */}
+                <div className="pt-2 border-t">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="https://api.apify.com/v2/datasets/XXXX/items?token=..."
+                      value={datasetUrls[profile.id] || ""}
+                      onChange={(e) =>
+                        setDatasetUrls((prev) => ({
+                          ...prev,
+                          [profile.id]: e.target.value,
+                        }))
+                      }
+                      className="text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleFetchDataset(profile.id)}
+                      disabled={
+                        fetchingId === profile.id ||
+                        !datasetUrls[profile.id]?.trim()
+                      }
+                    >
+                      {fetchingId === profile.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
-                )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Paste an Apify dataset URL to import posts directly.
+                  </p>
+                </div>
               </div>
             );
           })}

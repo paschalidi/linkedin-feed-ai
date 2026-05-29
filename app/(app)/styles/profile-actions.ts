@@ -41,14 +41,10 @@ export async function addLinkedInProfile(url: string) {
       throw new Error("This profile has already been added.");
     }
 
-    // Start scrape (fire-and-forget)
-    const runId = await startLinkedInScrape(normalizedUrl);
-
-    // Store profile with pending runId
+    // Store profile — no scrape yet, user triggers it manually
     const profile = await prisma.linkedInProfile.create({
       data: {
         profileUrl: normalizedUrl,
-        apifyRunId: runId,
         postCount: 0,
       },
     });
@@ -57,6 +53,33 @@ export async function addLinkedInProfile(url: string) {
   } catch (err: any) {
     console.error("addLinkedInProfile error:", err);
     throw new Error(err?.message || "Failed to add LinkedIn profile");
+  }
+}
+
+export async function startLinkedInProfileScrape(id: string) {
+  try {
+    const profile = await prisma.linkedInProfile.findUnique({
+      where: { id },
+    });
+    if (!profile) {
+      throw new Error("Profile not found");
+    }
+
+    // Start scrape
+    const runId = await startLinkedInScrape(profile.profileUrl);
+
+    // Update profile with new runId
+    const updated = await prisma.linkedInProfile.update({
+      where: { id },
+      data: {
+        apifyRunId: runId,
+      },
+    });
+
+    return updated;
+  } catch (err: any) {
+    console.error("startLinkedInProfileScrape error:", err);
+    throw new Error(err?.message || "Failed to start LinkedIn profile scrape");
   }
 }
 

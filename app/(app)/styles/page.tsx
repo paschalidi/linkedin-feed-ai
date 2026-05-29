@@ -8,6 +8,7 @@ import {
 import {
   getLinkedInProfiles,
   addLinkedInProfile,
+  startLinkedInProfileScrape,
   resyncLinkedInProfile,
   removeLinkedInProfile,
   generateStyleFingerprint,
@@ -189,6 +190,11 @@ export default async function StylesPage() {
               onAdd={async (url) => {
                 "use server";
                 await addLinkedInProfile(url);
+                revalidatePath("/styles");
+              }}
+              onStartScrape={async (id) => {
+                "use server";
+                await startLinkedInProfileScrape(id);
                 revalidatePath("/styles");
               }}
               onResync={async (id) => {
