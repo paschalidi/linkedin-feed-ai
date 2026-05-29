@@ -2,17 +2,24 @@ export interface PostGenerationOptions {
   idea: string;
   ideaDescription?: string;
   stylePrompt: string;
-  articles: Array<{ title: string; content: string; url: string }>;
+  articles: Array<{
+    title: string;
+    content: string;
+    url: string;
+    bestChunk?: string;
+  }>;
 }
 
 export function buildArticleContext(
   articles: PostGenerationOptions["articles"]
 ): string {
   return articles
-    .map(
-      (a, i) =>
-        `Article ${i + 1}: ${a.title}\nSource: ${a.url}\n${a.content.slice(0, 2000)}`
-    )
+    .map((a, i) => {
+      // Use the best matching chunk as primary context, fall back to truncated content
+      const contextText =
+        a.bestChunk?.trim() || a.content.slice(0, 2000);
+      return `Article ${i + 1}: ${a.title}\nSource: ${a.url}\n${contextText}`;
+    })
     .join("\n\n---\n\n");
 }
 

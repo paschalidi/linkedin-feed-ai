@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { redirect, isRedirectError } from "next/navigation";
+import { redirect } from "next/navigation";
 import {
   getIdeasForCompose,
   getActiveStyleProfile,
@@ -65,15 +65,16 @@ export default async function ComposePage({
           previewAction={previewSources}
           generateAction={async (formData) => {
             "use server";
+            let postId: string | undefined;
             try {
               const post = await generatePost(formData);
+              postId = post.id;
               revalidatePath("/posts");
-              redirect(`/posts/${post.id}`);
             } catch (err: any) {
-              if (isRedirectError(err)) throw err;
               const message = err?.message || "Failed to compose post";
               redirect(`/compose?error=${encodeURIComponent(message)}`);
             }
+            redirect(`/posts/${postId}`);
           }}
         />
       )}

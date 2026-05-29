@@ -25,13 +25,36 @@ model Article {
   sourceId        String?            @map("source_id")
   source          NewsletterSource?  @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   title           String
-  url             String
-  content         String
-  embedding       Unsupported("vector(768)")?
+  url             String             @unique
+  content         String             @db.Text
+  excerpt         String?            @db.Text
+  author          String?
+  publishedAt     DateTime?          @map("published_at")
+  contentHash     String?            @map("content_hash") @unique
+  canonicalUrl    String?            @map("canonical_url")
+  siteName        String?            @map("site_name")
+  charCount       Int?               @map("char_count")
+  extractionMethod String?           @map("extraction_method")
   createdAt       DateTime           @default(now()) @map("created_at")
   dailyIdeas      DailyIdea[]
+  chunks          ArticleChunk[]
 
   @@map("articles")
+}
+
+model ArticleChunk {
+  id              String    @id @default(uuid())
+  articleId       String    @map("article_id")
+  article         Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  chunkIndex      Int       @map("chunk_index")
+  text            String    @db.Text
+  charStart       Int       @map("char_start")
+  charEnd         Int       @map("char_end")
+  embedding       Unsupported("vector(768)")?
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@unique([articleId, chunkIndex])
+  @@map("article_chunks")
 }
 
 model StyleProfile {

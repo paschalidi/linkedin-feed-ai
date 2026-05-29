@@ -62,31 +62,39 @@ async function buildIdeaText(formData: FormData) {
 export async function retrieveRelevantArticles(ideaText: string) {
   try {
     const supabase = await createClient();
-    const embedding = await generateEmbedding(ideaText);
 
-    // Get total article count to decide strategy
+    // Generate query embedding with taskType=RETRIEVAL_QUERY
+    const embedding = await generateEmbedding(ideaText, {
+      taskType: "RETRIEVAL_QUERY",
+    });
+
+    // Get total chunk count to decide strategy
     const { count } = await supabase
-      .from("articles")
+      .from("article_chunks")
       .select("*", { count: "exact", head: true });
 
-    const totalArticles = count || 0;
+    const totalChunks = count || 0;
 
-    // Dynamic threshold: don't filter aggressively when corpus is tiny
+    // Dynamic threshold: chunk-level similarity scores are higher on average
+    // (smaller texts compare more precisely) so we start higher than before.
     const threshold =
-      totalArticles < 10 ? 0.0 : totalArticles < 50 ? 0.15 : 0.3;
-    const limit = Math.min(10, totalArticles);
+      totalChunks < 20 ? 0.0 : totalChunks < 100 ? 0.35 : 0.5;
+    const limit = Math.min(10, totalChunks);
 
-    let { data: vectorResults, error } = await supabase.rpc("match_articles", {
-      query_embedding: embedding,
-      match_threshold: threshold,
-      match_count: limit,
-    });
+    let { data: vectorResults, error } = await supabase.rpc(
+      "match_articles",
+      {
+        query_embedding: embedding,
+        match_threshold: threshold,
+        match_count: limit,
+      }
+    );
 
     if (error) throw error;
     vectorResults = vectorResults || [];
 
     // Fallback: if vector search returns very few results, do keyword search too
-    if (vectorResults.length < 3 && totalArticles > vectorResults.length) {
+    if (vectorResults.length < 3 && totalChunks > vectorResults.length) {
       const stopWords = new Set([
         "this", "that", "with", "from", "about", "your", "have", "been",
         "their", "they", "will", "would", "should", "could", "there", "where",
@@ -123,6 +131,8 @@ export async function retrieveRelevantArticles(ideaText: string) {
             if (!existingIds.has(kr.id)) {
               vectorResults.push({
                 ...kr,
+                best_chunk: kr.content, // keyword fallback: use full content as "best chunk"
+                best_chunk_index: 0,
                 similarity: 0.01,
               });
             }
@@ -182,6 +192,7 @@ export async function generatePost(formData: FormData) {
       title: a.title,
       content: a.content,
       url: a.url,
+      bestChunk: a.best_chunk,
     })),
   });
 

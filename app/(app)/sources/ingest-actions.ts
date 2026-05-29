@@ -3,34 +3,79 @@
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { fetchArticleText } from "@/lib/article-extractor";
+import { extractArticle, computeContentHash } from "@/lib/article-extractor";
+import { chunkArticle } from "@/lib/chunker";
 import { generateEmbedding, formatEmbeddingForPostgres } from "@/lib/gemini";
 
 export async function ingestArticle(sourceId: string, url: string) {
   const supabase = await createClient();
 
-  // Fetch and extract article text
-  const { title, content } = await fetchArticleText(url);
+  // Extract article using Mozilla Readability + metadata
+  const { article, quality } = await extractArticle(url);
 
-  // Generate embedding (768 dims from gemini-embedding-001 with Matryoshka truncation)
-  const embedding = await generateEmbedding(content);
-  const embeddingLiteral = formatEmbeddingForPostgres(embedding);
+  if (!quality.ok) {
+    throw new Error(`Article rejected: ${quality.reason}`);
+  }
+
+  // Content-hash dedup
+  const contentHash = computeContentHash(article.content);
+  const existing = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM articles WHERE content_hash = ${contentHash} LIMIT 1
+  `;
+  if (existing.length > 0) {
+    throw new Error("This article has already been ingested (duplicate content)");
+  }
 
   const articleId = randomUUID();
+  const chunks = chunkArticle(article.content);
 
-  // Store in database using raw SQL since Prisma doesn't natively support vector types
+  // Store article metadata (no embedding — lives on chunks now)
   await prisma.$executeRaw`
-    INSERT INTO articles (id, source_id, title, url, content, embedding, created_at)
+    INSERT INTO articles (
+      id, source_id, title, url, content,
+      excerpt, author, published_at, content_hash,
+      canonical_url, site_name, char_count, extraction_method, created_at
+    )
     VALUES (
       ${articleId},
       ${sourceId},
-      ${title},
+      ${article.title},
       ${url},
-      ${content},
-      ${embeddingLiteral}::vector(768),
+      ${article.content},
+      ${article.excerpt || null},
+      ${article.author || null},
+      ${article.publishedAt || null},
+      ${contentHash},
+      ${article.canonicalUrl || null},
+      ${article.siteName || null},
+      ${article.charCount},
+      ${"readability"},
       NOW()
     )
   `;
+
+  // Embed each chunk with taskType=RETRIEVAL_DOCUMENT + article title
+  for (const chunk of chunks) {
+    const embedding = await generateEmbedding(chunk.text, {
+      taskType: "RETRIEVAL_DOCUMENT",
+      title: article.title,
+    });
+    const embeddingLiteral = formatEmbeddingForPostgres(embedding);
+
+    await prisma.$executeRaw`
+      INSERT INTO article_chunks (id, article_id, chunk_index, text, char_start, char_end, embedding, created_at)
+      VALUES (
+        ${randomUUID()},
+        ${articleId},
+        ${chunk.index},
+        ${chunk.text},
+        ${chunk.charStart},
+        ${chunk.charEnd},
+        ${embeddingLiteral}::vector(768),
+        NOW()
+      )
+    `;
+  }
 
   // Update source last_fetched_at
   await supabase
@@ -38,7 +83,7 @@ export async function ingestArticle(sourceId: string, url: string) {
     .update({ last_fetched_at: new Date().toISOString() })
     .eq("id", sourceId);
 
-  return { id: articleId, source_id: sourceId, title, url, content };
+  return { id: articleId, source_id: sourceId, title: article.title, url, content: article.content };
 }
 
 export async function getArticlesBySource(sourceId: string) {
