@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getPost, updatePost } from "../actions";
+import { getPost, updatePost, regeneratePost } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CopyCheck, CheckCircle, ArrowLeft } from "lucide-react";
+import { CopyCheck, CheckCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
 
@@ -90,7 +90,7 @@ export default async function PostDetailPage({
                 className="font-mono text-base leading-relaxed"
               />
 
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
                 <Button
                   type="submit"
                   name="status"
@@ -115,6 +115,25 @@ export default async function PostDetailPage({
 
                 <CopyButton text={post.finalContent || post.draftContent} />
               </div>
+            </form>
+
+            {/* Regenerate is a separate action, not part of the edit form */}
+            <form
+              action={async () => {
+                "use server";
+                await regeneratePost(id);
+                revalidatePath(`/posts/${id}`);
+              }}
+              className="mt-4"
+            >
+              <Button
+                type="submit"
+                variant="outline"
+                className="text-base"
+              >
+                <RefreshCw className="h-5 w-5 mr-2" />
+                Regenerate
+              </Button>
             </form>
           </CardContent>
         </Card>
