@@ -3,18 +3,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { regenerateAndRefresh } from "./regenerate-action";
 
-export function RegenerateButton({
-  action,
-}: {
-  action: () => Promise<void>;
-}) {
+export function RegenerateButton({ postId }: { postId: string }) {
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleClick() {
     setIsLoading(true);
     try {
-      await action();
+      await regenerateAndRefresh(postId);
     } finally {
       setIsLoading(false);
     }

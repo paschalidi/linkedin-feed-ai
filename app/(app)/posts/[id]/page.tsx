@@ -15,7 +15,7 @@ import { CopyCheck, CheckCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
 import { RegenerateButton } from "./regenerate-button";
-import { regenerateAndRefresh } from "./regenerate-action";
+import { VersionNavigator } from "./version-navigator";
 
 export default async function PostDetailPage({
   params,
@@ -30,6 +30,17 @@ export default async function PostDetailPage({
   }
 
   const idea = post.idea;
+
+  // Parse versions for display
+  let versions: Array<{ content: string; createdAt: string }> = [];
+  try {
+    versions = JSON.parse(post.versions || "[]");
+  } catch {
+    versions = [];
+  }
+  const currentIdx = post.currentVersionIndex ?? 0;
+  const totalVersions = Math.max(versions.length, 1);
+  const displayIndex = Math.min(currentIdx, totalVersions - 1);
 
   return (
     <div className="space-y-8">
@@ -64,6 +75,15 @@ export default async function PostDetailPage({
             </span>
           </div>
         </div>
+
+        {/* Version Navigator */}
+        {totalVersions > 1 && (
+          <VersionNavigator
+            postId={id}
+            currentIndex={displayIndex}
+            totalVersions={totalVersions}
+          />
+        )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
@@ -73,6 +93,11 @@ export default async function PostDetailPage({
             <CardTitle className="text-xl">Draft</CardTitle>
             <CardDescription>
               Edit and finalize your LinkedIn post
+              {totalVersions > 1 && (
+                <span className="ml-2 text-xs">
+                  (viewing version {displayIndex + 1} of {totalVersions})
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -119,9 +144,9 @@ export default async function PostDetailPage({
               </div>
             </form>
 
-            {/* Regenerate is a separate client action with loading state */}
+            {/* Regenerate */}
             <div className="mt-4">
-              <RegenerateButton action={() => regenerateAndRefresh(id)} />
+              <RegenerateButton postId={id} />
             </div>
           </CardContent>
         </Card>
@@ -160,6 +185,31 @@ export default async function PostDetailPage({
                 {(post.finalContent || post.draftContent).length} characters
               </p>
             </div>
+
+            {/* Version History */}
+            {versions.length > 0 && (
+              <div>
+                <p className="text-base font-medium">Version History</p>
+                <div className="space-y-1 mt-1">
+                  {versions.map((v, i) => (
+                    <div
+                      key={i}
+                      className={`text-sm px-2 py-1 rounded ${
+                        i === displayIndex
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      Version {i + 1} —{" "}
+                      {new Date(v.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

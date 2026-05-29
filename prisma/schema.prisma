@@ -93,13 +93,15 @@ model DailyIdea {
 }
 
 model GeneratedPost {
-  id              String    @id @default(uuid())
-  ideaId          String?   @map("idea_id")
-  idea            DailyIdea? @relation(fields: [ideaId], references: [id], onDelete: SetNull)
-  draftContent    String    @map("draft_content") @db.Text
-  finalContent    String?   @map("final_content") @db.Text
-  status          String    @default("draft") // "draft" | "approved" | "posted"
-  createdAt       DateTime  @default(now()) @map("created_at")
+  id                  String    @id @default(uuid())
+  ideaId              String?   @map("idea_id")
+  idea                DailyIdea? @relation(fields: [ideaId], references: [id], onDelete: SetNull)
+  draftContent        String    @map("draft_content") @db.Text
+  finalContent        String?   @map("final_content") @db.Text
+  status              String    @default("draft") // "draft" | "approved" | "posted"
+  versions            String?   @map("versions") @db.Text
+  currentVersionIndex Int?      @map("current_version_index")
+  createdAt           DateTime  @default(now()) @map("created_at")
 
   @@map("generated_posts")
 }

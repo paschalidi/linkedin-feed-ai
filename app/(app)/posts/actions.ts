@@ -4,6 +4,19 @@ import { prisma } from "@/lib/prisma";
 import { generateLinkedInPost } from "@/lib/gemini";
 import { retrieveRelevantArticles } from "../compose/actions";
 
+interface Version {
+  content: string;
+  createdAt: string;
+}
+
+function getVersions(post: { versions: string | null }): Version[] {
+  try {
+    return JSON.parse(post.versions || "[]") as Version[];
+  } catch {
+    return [];
+  }
+}
+
 export async function getPost(id: string) {
   try {
     return await prisma.generatedPost.findUnique({
@@ -22,16 +35,61 @@ export async function updatePost(formData: FormData) {
     const finalContent = formData.get("final_content") as string;
     const status = formData.get("status") as string;
 
+    // Also update the current version in the versions array
+    const post = await prisma.generatedPost.findUnique({ where: { id } });
+    if (!post) throw new Error("Post not found");
+
+    const versions = getVersions(post);
+    const currentIdx = post.currentVersionIndex ?? 0;
+
+    if (versions[currentIdx]) {
+      versions[currentIdx].content = finalContent;
+    }
+
     return await prisma.generatedPost.update({
       where: { id },
       data: {
         finalContent,
         status,
+        versions: JSON.stringify(versions),
       },
     });
   } catch (err: any) {
     console.error("updatePost error:", err);
     throw new Error(err?.message || "Failed to update post");
+  }
+}
+
+export async function navigateVersion(id: string, direction: "prev" | "next") {
+  try {
+    const post = await prisma.generatedPost.findUnique({ where: { id } });
+    if (!post) throw new Error("Post not found");
+
+    const versions = getVersions(post);
+    const currentIdx = post.currentVersionIndex ?? 0;
+
+    let newIdx = currentIdx;
+    if (direction === "prev" && currentIdx > 0) {
+      newIdx = currentIdx - 1;
+    } else if (direction === "next" && currentIdx < versions.length - 1) {
+      newIdx = currentIdx + 1;
+    }
+
+    if (newIdx === currentIdx) return post; // No change
+
+    const newContent = versions[newIdx].content;
+
+    return await prisma.generatedPost.update({
+      where: { id },
+      data: {
+        currentVersionIndex: newIdx,
+        draftContent: newContent,
+        finalContent: newContent,
+      },
+    });
+  } catch (err: any) {
+    console.error("navigateVersion error:", err);
+    throw new Error(err?.message || "Failed to navigate versions");
   }
 }
 
@@ -89,12 +147,32 @@ export async function regeneratePost(id: string) {
 
     const draftWithSources = draft.trim() + sourcesSection;
 
-    // Update the post with the new draft
+    // Save current content to versions before overwriting
+    const versions = getVersions(post);
+    const currentIdx = post.currentVersionIndex ?? 0;
+
+    // If the current version already exists at this index, update it first
+    // so we don't lose edits the user made to this version
+    if (versions[currentIdx]) {
+      versions[currentIdx].content = post.finalContent || post.draftContent;
+    }
+
+    // Append the new generation as a new version
+    versions.push({
+      content: draftWithSources,
+      createdAt: new Date().toISOString(),
+    });
+
+    const newIdx = versions.length - 1;
+
+    // Update the post with the new version
     return await prisma.generatedPost.update({
       where: { id },
       data: {
         draftContent: draftWithSources,
         finalContent: draftWithSources,
+        versions: JSON.stringify(versions),
+        currentVersionIndex: newIdx,
       },
     });
   } catch (err: any) {
