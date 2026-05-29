@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { addSource, deleteSource, getSources, getSourceArticleCounts } from "./actions";
-import { ingestArticle } from "./ingest-actions";
+import { ingestArticle, getAllArticles } from "./ingest-actions";
 import { syncRSSFeed, syncAllRSSFeeds } from "./rss-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ export default async function SourcesPage({
   const articleCounts = await getSourceArticleCounts();
   const totalArticles = Object.values(articleCounts).reduce((a, b) => a + b, 0);
 
+  const articles = await getAllArticles();
   const rssSources = sources.filter((s) => s.type === "rss");
   const syncResultJson = params.syncResult;
   let syncResult:
@@ -319,6 +320,67 @@ export default async function SourcesPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent Articles */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl">Recent Articles</CardTitle>
+              <CardDescription>
+                {articles.length} article{articles.length !== 1 ? "s" : ""} ingested
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {articles.length === 0 ? (
+            <div className="flex items-center gap-3 text-muted-foreground text-base">
+              <AlertCircle className="h-6 w-6" />
+              <p>No articles ingested yet. Add a source and click the ingest button.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {articles.slice(0, 20).map((article: any) => (
+                <div
+                  key={article.id}
+                  className="rounded-lg border p-4 space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-base truncate max-w-[500px]">
+                      {article.title}
+                    </span>
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      {article.char_count?.toLocaleString() ?? "?"} chars
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {article.url}
+                  </p>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    {article.site_name && (
+                      <span>{article.site_name}</span>
+                    )}
+                    {article.author && (
+                      <span>by {article.author}</span>
+                    )}
+                    {article.published_at && (
+                      <span>
+                        {new Date(article.published_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  {article.excerpt && (
+                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                      {article.excerpt}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
