@@ -19,8 +19,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
+import { StyleSelectValue } from "./select-values";
+import { IdeaMultiSelect } from "./idea-multi-select";
 import { Lightbulb, Palette, Sparkles, AlertCircle } from "lucide-react";
 
 export default async function ComposePage({
@@ -41,7 +42,7 @@ export default async function ComposePage({
       <div>
         <h1 className="text-4xl font-bold tracking-tight">Composer</h1>
         <p className="text-muted-foreground mt-1 text-lg">
-          Generate a LinkedIn post from an idea and your sources
+          Generate a LinkedIn post from one or more ideas and your sources
         </p>
       </div>
 
@@ -80,52 +81,35 @@ export default async function ComposePage({
         <form
           action={async (formData) => {
             "use server";
+            let result;
             try {
-              const result = await composePost(formData);
-              revalidatePath("/posts");
-              redirect(`/posts/${result.post.id}`);
+              result = await composePost(formData);
             } catch (err: any) {
               const message = err?.message || "Failed to compose post";
               redirect(`/compose?error=${encodeURIComponent(message)}`);
             }
+            revalidatePath("/posts");
+            redirect(`/posts/${result.post.id}`);
           }}
           className="space-y-8"
         >
-          <div className="grid gap-8 lg:grid-cols-2">
+          <div className="grid gap-8">
             {/* Idea Selection */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Lightbulb className="h-6 w-6" />
-                  Select Idea
+                  Select Ideas
                 </CardTitle>
                 <CardDescription>
-                  Pick a topic to write about
+                  Pick one or more topics to mix into a single post
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Select
-                  name="idea_id"
-                  defaultValue={preselectedIdea || ideas[0]?.id}
-                >
-                  <SelectTrigger className="text-base">
-                    <SelectValue placeholder="Choose an idea" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ideas.map((idea) => (
-                      <SelectItem key={idea.id} value={idea.id}>
-                        <div className="flex flex-col">
-                          <span className="text-base">{idea.title}</span>
-                          {idea.description && (
-                            <span className="text-sm text-muted-foreground truncate max-w-[300px]">
-                              {idea.description}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <IdeaMultiSelect
+                  ideas={ideas}
+                  preselected={preselectedIdea}
+                />
               </CardContent>
             </Card>
 
@@ -145,20 +129,17 @@ export default async function ComposePage({
                   name="style_profile_id"
                   defaultValue={activeStyle?.id || allStyles[0]?.id}
                 >
-                  <SelectTrigger className="text-base">
-                    <SelectValue placeholder="Choose a style" />
+                  <SelectTrigger className="w-full text-base">
+                    <StyleSelectValue
+                      styles={allStyles}
+                      placeholder="Choose a style"
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {allStyles.map((style) => (
                       <SelectItem key={style.id} value={style.id}>
-                        <div className="flex items-center gap-2 text-base">
-                          {style.name}
-                          {style.isActive && (
-                            <span className="text-sm text-muted-foreground">
-                              (active)
-                            </span>
-                          )}
-                        </div>
+                        {style.name}
+                        {style.isActive ? " (active)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

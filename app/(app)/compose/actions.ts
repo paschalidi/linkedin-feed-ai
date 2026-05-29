@@ -2,13 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { generateEmbedding } from "@/lib/gemini";
-import { generateLinkedInPost } from "@/lib/claude";
+import { generateEmbedding, generateLinkedInPost } from "@/lib/gemini";
 
 export async function getIdeasForCompose() {
   try {
     return await prisma.dailyIdea.findMany({
-      where: { status: "draft" },
+      where: { status: { in: ["draft", "used"] } },
       orderBy: { createdAt: "desc" },
     });
   } catch (err: any) {
@@ -60,14 +59,16 @@ export async function retrieveRelevantArticles(ideaText: string) {
 
 export async function composePost(formData: FormData) {
   try {
-    const ideaId = formData.get("idea_id") as string;
+    const ideaIds = formData.getAll("idea_ids") as string[];
     const styleProfileId = formData.get("style_profile_id") as string;
 
-    // Get the idea
-    const idea = await prisma.dailyIdea.findUnique({
-      where: { id: ideaId },
+    if (!ideaIds.length) throw new Error("Select at least one idea");
+
+    // Get all selected ideas
+    const ideas = await prisma.dailyIdea.findMany({
+      where: { id: { in: ideaIds } },
     });
-    if (!idea) throw new Error("Idea not found");
+    if (ideas.length === 0) throw new Error("No ideas found");
 
     // Get the style profile
     const style = await prisma.styleProfile.findUnique({
@@ -75,14 +76,19 @@ export async function composePost(formData: FormData) {
     });
     if (!style) throw new Error("Style profile not found");
 
-    // Retrieve relevant articles
-    const ideaText = `${idea.title} ${idea.description || ""}`;
+    // Combine all selected ideas for article retrieval and generation
+    const combinedTitle = ideas.map((i) => i.title).join(" + ");
+    const combinedDescription = ideas
+      .map((i) => i.description)
+      .filter(Boolean)
+      .join("\n\n");
+    const ideaText = `${combinedTitle} ${combinedDescription}`;
     const articles = await retrieveRelevantArticles(ideaText);
 
     // Generate the post
     const draft = await generateLinkedInPost({
-      idea: idea.title,
-      ideaDescription: idea.description || undefined,
+      idea: combinedTitle,
+      ideaDescription: combinedDescription || undefined,
       stylePrompt: style.promptText,
       articles: articles.map((a: any) => ({
         title: a.title,
@@ -91,19 +97,20 @@ export async function composePost(formData: FormData) {
       })),
     });
 
-    // Store the generated post
+    // Store the generated post — link to the first idea as primary
+    const primaryIdeaId = ideas[0].id;
     const post = await prisma.generatedPost.create({
       data: {
-        ideaId,
+        ideaId: primaryIdeaId,
         draftContent: draft,
         finalContent: draft,
         status: "draft",
       },
     });
 
-    // Mark idea as used
-    await prisma.dailyIdea.update({
-      where: { id: ideaId },
+    // Mark all selected ideas as used
+    await prisma.dailyIdea.updateMany({
+      where: { id: { in: ideaIds } },
       data: { status: "used" },
     });
 

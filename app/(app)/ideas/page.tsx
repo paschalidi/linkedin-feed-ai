@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { addIdea, archiveIdea, getIdeas } from "./actions";
+import { addIdea, archiveIdea, getIdeas, reuseIdea } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,12 +11,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, Plus, Archive, Sparkles, ArrowRight } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Lightbulb,
+  Plus,
+  Archive,
+  Sparkles,
+  ArrowRight,
+  RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
 
 export default async function IdeasPage() {
   const ideas = await getIdeas();
   const draftIdeas = ideas.filter((i) => i.status === "draft");
+  const usedIdeas = ideas.filter((i) => i.status === "used");
   const archivedIdeas = ideas.filter((i) => i.status === "archived");
 
   return (
@@ -56,7 +65,9 @@ export default async function IdeasPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-base font-medium">Description (optional)</label>
+                <label className="text-base font-medium">
+                  Description (optional)
+                </label>
                 <Textarea
                   name="description"
                   placeholder="Key points to cover, angle, or perspective..."
@@ -81,89 +92,236 @@ export default async function IdeasPage() {
           </CardContent>
         </Card>
 
-        {/* Draft Ideas */}
+        {/* Ideas Tabs */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-xl">Pending Ideas</CardTitle>
+            <CardTitle className="text-xl">Your Ideas</CardTitle>
             <CardDescription>
-              {draftIdeas.length} idea{draftIdeas.length !== 1 ? "s" : ""} waiting
+              {ideas.length} idea{ideas.length !== 1 ? "s" : ""} total
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {draftIdeas.length === 0 ? (
-              <p className="text-base text-muted-foreground">
-                No pending ideas. Add one above or hit &quot;Surprise Me&quot; to auto-generate.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {draftIdeas.map((idea) => (
-                  <div
-                    key={idea.id}
-                    className="flex items-start justify-between rounded-lg border p-5"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Lightbulb className="h-5 w-5 text-yellow-500" />
-                        <span className="font-medium text-base">{idea.title}</span>
-                        <Badge variant="outline">Draft</Badge>
-                      </div>
-                      {idea.description && (
-                        <p className="text-base text-muted-foreground">
-                          {idea.description}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Added {new Date(idea.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Link href={`/compose?idea=${idea.id}`}>
-                        <Button variant="default" size="sm" className="text-base">
-                          Generate
-                          <ArrowRight className="h-5 w-5 ml-1" />
-                        </Button>
-                      </Link>
-                      <form
-                        action={async () => {
-                          "use server";
-                          await archiveIdea(idea.id);
-                          revalidatePath("/ideas");
-                        }}
+            <Tabs defaultValue="draft">
+              <TabsList className="mb-4">
+                <TabsTrigger value="draft">
+                  Draft
+                  {draftIdeas.length > 0 && (
+                    <Badge variant="secondary" className="ml-1.5">
+                      {draftIdeas.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="used">
+                  Used
+                  {usedIdeas.length > 0 && (
+                    <Badge variant="secondary" className="ml-1.5">
+                      {usedIdeas.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="archived">
+                  Archived
+                  {archivedIdeas.length > 0 && (
+                    <Badge variant="secondary" className="ml-1.5">
+                      {archivedIdeas.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="draft">
+                {draftIdeas.length === 0 ? (
+                  <p className="text-base text-muted-foreground">
+                    No pending ideas. Add one above or hit &quot;Surprise
+                    Me&quot; to auto-generate.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {draftIdeas.map((idea) => (
+                      <div
+                        key={idea.id}
+                        className="flex items-start justify-between rounded-lg border p-5"
                       >
-                        <Button variant="ghost" size="icon" type="submit">
-                          <Archive className="h-5 w-5 text-muted-foreground" />
-                        </Button>
-                      </form>
-                    </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Lightbulb className="h-5 w-5 text-yellow-500" />
+                            <span className="font-medium text-base">
+                              {idea.title}
+                            </span>
+                            <Badge variant="outline">Draft</Badge>
+                          </div>
+                          {idea.description && (
+                            <p className="text-base text-muted-foreground">
+                              {idea.description}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Added{" "}
+                            {new Date(idea.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/compose?idea=${idea.id}`}>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="text-base"
+                            >
+                              Generate
+                              <ArrowRight className="h-5 w-5 ml-1" />
+                            </Button>
+                          </Link>
+                          <form
+                            action={async () => {
+                              "use server";
+                              await archiveIdea(idea.id);
+                              revalidatePath("/ideas");
+                            }}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              type="submit"
+                            >
+                              <Archive className="h-5 w-5 text-muted-foreground" />
+                            </Button>
+                          </form>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                )}
+              </TabsContent>
+
+              <TabsContent value="used">
+                {usedIdeas.length === 0 ? (
+                  <p className="text-base text-muted-foreground">
+                    No used ideas yet. Generate a post from a draft idea to see
+                    it here.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {usedIdeas.map((idea) => (
+                      <div
+                        key={idea.id}
+                        className="flex items-start justify-between rounded-lg border p-5"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Lightbulb className="h-5 w-5 text-blue-500" />
+                            <span className="font-medium text-base">
+                              {idea.title}
+                            </span>
+                            <Badge variant="secondary">Used</Badge>
+                          </div>
+                          {idea.description && (
+                            <p className="text-base text-muted-foreground">
+                              {idea.description}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Added{" "}
+                            {new Date(idea.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <form
+                            action={async () => {
+                              "use server";
+                              await reuseIdea(idea.id);
+                              revalidatePath("/ideas");
+                            }}
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="submit"
+                              className="text-base"
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                              Reuse
+                            </Button>
+                          </form>
+                          <form
+                            action={async () => {
+                              "use server";
+                              await archiveIdea(idea.id);
+                              revalidatePath("/ideas");
+                            }}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              type="submit"
+                            >
+                              <Archive className="h-5 w-5 text-muted-foreground" />
+                            </Button>
+                          </form>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="archived">
+                {archivedIdeas.length === 0 ? (
+                  <p className="text-base text-muted-foreground">
+                    No archived ideas.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {archivedIdeas.map((idea) => (
+                      <div
+                        key={idea.id}
+                        className="flex items-start justify-between rounded-lg border p-5"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Archive className="h-5 w-5 text-muted-foreground" />
+                            <span className="font-medium text-base line-through text-muted-foreground">
+                              {idea.title}
+                            </span>
+                            <Badge variant="outline">Archived</Badge>
+                          </div>
+                          {idea.description && (
+                            <p className="text-base text-muted-foreground">
+                              {idea.description}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Added{" "}
+                            {new Date(idea.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <form
+                            action={async () => {
+                              "use server";
+                              await reuseIdea(idea.id);
+                              revalidatePath("/ideas");
+                            }}
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="submit"
+                              className="text-base"
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                              Restore
+                            </Button>
+                          </form>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
-
-      {/* Archived Ideas */}
-      {archivedIdeas.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Archived</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {archivedIdeas.map((idea) => (
-                <div
-                  key={idea.id}
-                  className="flex items-center gap-2 text-base text-muted-foreground"
-                >
-                  <Archive className="h-4 w-4" />
-                  <span className="line-through">{idea.title}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

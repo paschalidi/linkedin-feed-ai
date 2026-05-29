@@ -48,3 +48,15 @@ export async function archiveIdea(id: string) {
     throw new Error(err?.message || "Failed to archive idea");
   }
 }
+
+export async function reuseIdea(id: string) {
+  try {
+    await prisma.dailyIdea.update({
+      where: { id },
+      data: { status: "draft" },
+    });
+  } catch (err: any) {
+    console.error("reuseIdea error:", err);
+    throw new Error(err?.message || "Failed to reuse idea");
+  }
+}

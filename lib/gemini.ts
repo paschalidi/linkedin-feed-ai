@@ -125,7 +125,7 @@ export async function generateLinkedInPost(options: {
   articles: Array<{ title: string; content: string; url: string }>;
 }): Promise<string> {
   // Try models in order: flash-lite (higher free quota) -> flash (better quality)
-  const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash"];
+  const models = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
   let lastError: Error | undefined;
 
   for (const modelName of models) {
