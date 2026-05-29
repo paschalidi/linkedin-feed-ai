@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
-import { revalidatePath } from "next/cache";
-import { getPost, updatePost } from "../actions";
+import { getPost } from "../actions";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -11,12 +9,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { CopyButton } from "@/components/copy-button";
-import { RegenerateButton } from "./regenerate-button";
 import { VersionToolbar } from "./version-toolbar";
-import { PublishToLinkedInButton } from "./publish-to-linkedin-button";
+import { PostEditor } from "./post-editor";
 
 export default async function PostDetailPage({
   params,
@@ -92,7 +88,7 @@ export default async function PostDetailPage({
             <CardHeader>
               <CardTitle className="text-xl">Draft</CardTitle>
               <CardDescription>
-                Edit and finalize your LinkedIn post
+                Edit your LinkedIn post — changes are saved automatically
                 {totalVersions > 1 && (
                   <span className="ml-2 text-xs font-medium text-primary">
                     (viewing version {displayIndex + 1} of {totalVersions})
@@ -101,43 +97,11 @@ export default async function PostDetailPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form
-                action={async (formData) => {
-                  "use server";
-                  await updatePost(formData);
-                  revalidatePath(`/posts/${id}`);
-                }}
-                className="space-y-5"
-              >
-                <input type="hidden" name="id" value={post.id} />
-                <Textarea
-                  name="final_content"
-                  defaultValue={post.finalContent || post.draftContent}
-                  rows={20}
-                  className="font-mono text-base leading-relaxed"
-                />
-
-                <div className="flex flex-wrap gap-4 items-center">
-                  <Button
-                    type="submit"
-                    name="status"
-                    value="approved"
-                    variant="default"
-                    className="text-base"
-                  >
-                    <CheckCircle className="h-5 w-5 mr-2" />
-                    Approve
-                  </Button>
-
-                  {!post.publishedToLinkedInAt && (
-                    <PublishToLinkedInButton postId={id} />
-                  )}
-
-                  <RegenerateButton postId={id} />
-
-                  <CopyButton text={post.finalContent || post.draftContent} />
-                </div>
-              </form>
+              <PostEditor
+                postId={id}
+                initialContent={post.finalContent || post.draftContent}
+                isPublished={!!post.publishedToLinkedInAt}
+              />
             </CardContent>
           </Card>
         </div>

@@ -171,18 +171,45 @@ export async function regeneratePost(id: string) {
   }
 }
 
-export async function publishToLinkedIn(id: string) {
+export async function savePostContent(id: string, content: string) {
   try {
-    const post = await prisma.generatedPost.findUnique({
-      where: { id },
-      include: { idea: true },
-    });
+    const post = await prisma.generatedPost.findUnique({ where: { id } });
+    if (!post) throw new Error("Post not found");
 
-    if (!post) {
-      throw new Error("Post not found");
+    const versions = getVersions(post);
+    const currentIdx = post.currentVersionIndex ?? 0;
+
+    if (versions[currentIdx]) {
+      versions[currentIdx].content = content;
     }
 
-    const content = post.finalContent || post.draftContent;
+    return await prisma.generatedPost.update({
+      where: { id },
+      data: {
+        finalContent: content,
+        versions: JSON.stringify(versions),
+      },
+    });
+  } catch (err: any) {
+    console.error("savePostContent error:", err);
+    throw new Error(err?.message || "Failed to save post content");
+  }
+}
+
+export async function updatePostStatus(id: string, status: string) {
+  try {
+    return await prisma.generatedPost.update({
+      where: { id },
+      data: { status },
+    });
+  } catch (err: any) {
+    console.error("updatePostStatus error:", err);
+    throw new Error(err?.message || "Failed to update post status");
+  }
+}
+
+export async function publishToLinkedIn(id: string, content: string) {
+  try {
     if (!content || content.trim().length === 0) {
       throw new Error("Post has no content to publish");
     }
