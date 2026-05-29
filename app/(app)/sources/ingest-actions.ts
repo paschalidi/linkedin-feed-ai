@@ -10,6 +10,14 @@ import { generateEmbedding, formatEmbeddingForPostgres } from "@/lib/gemini";
 export async function ingestArticle(sourceId: string, url: string) {
   const supabase = await createClient();
 
+  // Check for existing URL first (url is now UNIQUE)
+  const existingUrl = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM articles WHERE url = ${url} LIMIT 1
+  `;
+  if (existingUrl.length > 0) {
+    throw new Error("This URL has already been ingested");
+  }
+
   // Extract article using Mozilla Readability + metadata
   const { article, quality } = await extractArticle(url);
 
@@ -17,12 +25,12 @@ export async function ingestArticle(sourceId: string, url: string) {
     throw new Error(`Article rejected: ${quality.reason}`);
   }
 
-  // Content-hash dedup
+  // Content-hash dedup (catches same article at different URLs)
   const contentHash = computeContentHash(article.content);
-  const existing = await prisma.$queryRaw<Array<{ id: string }>>`
+  const existingHash = await prisma.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM articles WHERE content_hash = ${contentHash} LIMIT 1
   `;
-  if (existing.length > 0) {
+  if (existingHash.length > 0) {
     throw new Error("This article has already been ingested (duplicate content)");
   }
 
