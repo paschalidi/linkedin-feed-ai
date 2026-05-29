@@ -49,10 +49,16 @@ export async function regeneratePost(id: string) {
     const idea = post.idea;
     const ideaText = `${idea.title} ${idea.description || ""}`;
 
-    const style = await prisma.styleProfile.findFirst({
+    // Find active style, or fall back to any style profile
+    let style = await prisma.styleProfile.findFirst({
       where: { isActive: true },
     });
-    if (!style) throw new Error("No active style profile found");
+    if (!style) {
+      style = await prisma.styleProfile.findFirst({
+        orderBy: { createdAt: "desc" },
+      });
+    }
+    if (!style) throw new Error("No style profiles found. Create one in /styles first.");
 
     // Re-retrieve relevant articles with the same idea
     const articles = await retrieveRelevantArticles(ideaText);
