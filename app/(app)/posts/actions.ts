@@ -135,18 +135,7 @@ export async function regeneratePost(id: string) {
       })),
     });
 
-    const sourcesSection =
-      articles.length > 0
-        ? "\n\n---\n\nSources:\n" +
-          articles
-            .map(
-              (a: any) =>
-                `• ${a.title} — ${a.url.replace(/^https?:\/\//, "").split("/")[0]}`
-            )
-            .join("\n")
-        : "";
-
-    const draftWithSources = draft.trim() + sourcesSection;
+    const draftWithSources = draft.trim();
 
     // Save current content to versions before overwriting
     const versions = getVersions(post);
