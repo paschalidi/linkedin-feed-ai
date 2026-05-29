@@ -37,9 +37,9 @@ export default async function IdeasPage() {
         </p>
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-3">
+      <div className="space-y-8">
         {/* Add Idea Form */}
-        <Card className="lg:col-span-1">
+        <Card>
           <CardHeader>
             <CardTitle className="text-xl">Add Today&apos;s Idea</CardTitle>
             <CardDescription>
@@ -75,25 +75,24 @@ export default async function IdeasPage() {
                 />
               </div>
 
-              <Button type="submit" className="w-full text-base">
-                <Plus className="h-5 w-5 mr-2" />
-                Add Idea
-              </Button>
-            </form>
-
-            <div className="mt-5 pt-5 border-t">
-              <Link href="/compose">
-                <Button variant="secondary" className="w-full text-base">
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Surprise Me
+              <div className="flex items-center gap-3">
+                <Button type="submit" className="flex-1 text-base">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Add Idea
                 </Button>
-              </Link>
-            </div>
+                <Link href="/compose" className="flex-1">
+                  <Button variant="secondary" className="w-full text-base">
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Surprise Me
+                  </Button>
+                </Link>
+              </div>
+            </form>
           </CardContent>
         </Card>
 
         {/* Ideas Tabs */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-xl">Your Ideas</CardTitle>
             <CardDescription>

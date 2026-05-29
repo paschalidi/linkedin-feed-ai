@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { buildSystemPrompt, buildUserPrompt } from "./prompts";
 
 function getApiKey(): string {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -76,42 +77,15 @@ async function generateWithModel(
   const genAI = new GoogleGenerativeAI(getApiKey());
   const model = genAI.getGenerativeModel({ model: modelName });
 
-  const articleContext = options.articles
-    .map(
-      (a, i) =>
-        `Article ${i + 1}: ${a.title}\nSource: ${a.url}\n${a.content.slice(0, 2000)}`
-    )
-    .join("\n\n---\n\n");
-
-  const systemPrompt = `You are a LinkedIn content strategist. Write engaging, professional LinkedIn posts based on the user's idea and reference articles.
-
-Writing Style:
-${options.stylePrompt}
-
-Guidelines:
-- Write 3-5 short paragraphs
-- Use line breaks for readability
-- Include a hook in the first line
-- Add 1-3 relevant bullet points if appropriate
-- End with a question or call-to-action to drive engagement
-- Keep it under 300 words
-- Do not use hashtags unless specifically requested in the style
-- Match the tone and voice described in the Writing Style section`;
-
-  const userPrompt = `Idea: ${options.idea}
-${options.ideaDescription ? `Description: ${options.ideaDescription}\n` : ""}
-
-Reference Articles:
-${articleContext}
-
-Write a LinkedIn post about this idea, using the reference articles for context and facts. Do not copy-paste from the articles — synthesize and add your own perspective.`;
+  const systemPrompt = buildSystemPrompt(options.stylePrompt);
+  const userPrompt = buildUserPrompt(options);
 
   const result = await model.generateContent({
     systemInstruction: systemPrompt,
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     generationConfig: {
-      temperature: 0.8,
-      maxOutputTokens: 800,
+      temperature: 0.85,
+      maxOutputTokens: 900,
     },
   });
 

@@ -3,6 +3,7 @@ import { XMLParser } from "fast-xml-parser";
 export interface RSSItem {
   title: string;
   link: string;
+  guid?: string;
   description?: string;
   pubDate?: string;
   content?: string;
@@ -37,6 +38,7 @@ export async function parseRSSFeed(xmlContent: string): Promise<RSSFeed> {
       items: items.map((item: any) => ({
         title: item.title || "Untitled",
         link: item.link || "",
+        guid: item.guid,
         description: item.description,
         pubDate: item.pubDate,
         content: item["content:encoded"] || item.description,

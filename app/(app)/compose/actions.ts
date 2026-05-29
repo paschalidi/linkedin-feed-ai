@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { generateEmbedding, generateLinkedInPost } from "@/lib/gemini";
@@ -38,83 +40,186 @@ export async function getAllStyleProfiles() {
   }
 }
 
+async function buildIdeaText(formData: FormData) {
+  const ideaIds = formData.getAll("idea_ids") as string[];
+  const ideas = await prisma.dailyIdea.findMany({
+    where: { id: { in: ideaIds } },
+  });
+  const combinedTitle = ideas.map((i) => i.title).join(" + ");
+  const combinedDescription = ideas
+    .map((i) => i.description)
+    .filter(Boolean)
+    .join("\n\n");
+  return {
+    ideaText: `${combinedTitle} ${combinedDescription}`,
+    combinedTitle,
+    combinedDescription,
+    primaryIdeaId: ideas[0]?.id,
+    ideaCount: ideas.length,
+  };
+}
+
 export async function retrieveRelevantArticles(ideaText: string) {
   try {
     const supabase = await createClient();
     const embedding = await generateEmbedding(ideaText);
 
-    const { data, error } = await supabase.rpc("match_articles", {
+    // Get total article count to decide strategy
+    const { count } = await supabase
+      .from("articles")
+      .select("*", { count: "exact", head: true });
+
+    const totalArticles = count || 0;
+
+    // Dynamic threshold: don't filter aggressively when corpus is tiny
+    const threshold =
+      totalArticles < 10 ? 0.0 : totalArticles < 50 ? 0.15 : 0.3;
+    const limit = Math.min(10, totalArticles);
+
+    let { data: vectorResults, error } = await supabase.rpc("match_articles", {
       query_embedding: embedding,
-      match_threshold: 0.3,
-      match_count: 5,
+      match_threshold: threshold,
+      match_count: limit,
     });
 
     if (error) throw error;
-    return data || [];
+    vectorResults = vectorResults || [];
+
+    // Fallback: if vector search returns very few results, do keyword search too
+    if (vectorResults.length < 3 && totalArticles > vectorResults.length) {
+      const stopWords = new Set([
+        "this", "that", "with", "from", "about", "your", "have", "been",
+        "their", "they", "will", "would", "should", "could", "there", "where",
+        "when", "what", "how", "than", "more", "some", "only", "other", "time",
+        "very", "after", "most", "made", "many", "also", "back", "years", "work",
+        "well", "even", "these", "them", "then", "know", "take", "people", "into",
+        "year", "good", "just", "first", "over", "think", "look", "want", "give",
+        "being", "each", "which", "make", "like", "come", "those", "way", "may",
+        "say", "great", "day", "use", "man", "new", "now", "own", "too", "old",
+        "tell", "here", "long", "such", "never", "might", "shall", "still",
+        "while",
+      ]);
+
+      const keywords = ideaText
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, "")
+        .split(/\s+/)
+        .filter((w) => w.length > 3 && !stopWords.has(w));
+
+      if (keywords.length > 0) {
+        const orFilters = keywords
+          .map((k) => `title.ilike.%${k}%,content.ilike.%${k}%`)
+          .join(",");
+
+        const { data: keywordResults } = await supabase
+          .from("articles")
+          .select("id, source_id, title, url, content")
+          .or(orFilters)
+          .limit(10);
+
+        if (keywordResults && keywordResults.length > 0) {
+          const existingIds = new Set(vectorResults.map((a: any) => a.id));
+          for (const kr of keywordResults) {
+            if (!existingIds.has(kr.id)) {
+              vectorResults.push({
+                ...kr,
+                similarity: 0.01,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return vectorResults;
   } catch (err: any) {
     console.error("retrieveRelevantArticles error:", err);
     return [];
   }
 }
 
+export async function previewSources(formData: FormData) {
+  const { ideaText } = await buildIdeaText(formData);
+  if (!ideaText.trim()) throw new Error("Select at least one idea");
+
+  const articles = await retrieveRelevantArticles(ideaText);
+  return articles.map((a: any) => ({
+    id: a.id,
+    title: a.title,
+    url: a.url,
+    similarity: typeof a.similarity === "number" ? a.similarity : undefined,
+  }));
+}
+
+export async function generatePost(formData: FormData) {
+  const ideaIds = formData.getAll("idea_ids") as string[];
+  const styleProfileId = formData.get("style_profile_id") as string;
+
+  if (!ideaIds.length) throw new Error("Select at least one idea");
+
+  const {
+    combinedTitle,
+    combinedDescription,
+    ideaText,
+    primaryIdeaId,
+    ideaCount,
+  } = await buildIdeaText(formData);
+
+  if (ideaCount === 0) throw new Error("No ideas found");
+
+  const style = await prisma.styleProfile.findUnique({
+    where: { id: styleProfileId },
+  });
+  if (!style) throw new Error("Style profile not found");
+
+  const articles = await retrieveRelevantArticles(ideaText);
+
+  const draft = await generateLinkedInPost({
+    idea: combinedTitle,
+    ideaDescription: combinedDescription || undefined,
+    stylePrompt: style.promptText,
+    articles: articles.map((a: any) => ({
+      title: a.title,
+      content: a.content,
+      url: a.url,
+    })),
+  });
+
+  const sourcesSection =
+    articles.length > 0
+      ? "\n\n---\n\nSources:\n" +
+        articles
+          .map(
+            (a: any) =>
+              `• ${a.title} — ${a.url.replace(/^https?:\/\//, "").split("/")[0]}`
+          )
+          .join("\n")
+      : "";
+
+  const draftWithSources = draft.trim() + sourcesSection;
+
+  const post = await prisma.generatedPost.create({
+    data: {
+      ideaId: primaryIdeaId!,
+      draftContent: draftWithSources,
+      finalContent: draftWithSources,
+      status: "draft",
+    },
+  });
+
+  await prisma.dailyIdea.updateMany({
+    where: { id: { in: ideaIds } },
+    data: { status: "used" },
+  });
+
+  return post;
+}
+
 export async function composePost(formData: FormData) {
+  // Legacy single-step action — kept for backwards compatibility
   try {
-    const ideaIds = formData.getAll("idea_ids") as string[];
-    const styleProfileId = formData.get("style_profile_id") as string;
-
-    if (!ideaIds.length) throw new Error("Select at least one idea");
-
-    // Get all selected ideas
-    const ideas = await prisma.dailyIdea.findMany({
-      where: { id: { in: ideaIds } },
-    });
-    if (ideas.length === 0) throw new Error("No ideas found");
-
-    // Get the style profile
-    const style = await prisma.styleProfile.findUnique({
-      where: { id: styleProfileId },
-    });
-    if (!style) throw new Error("Style profile not found");
-
-    // Combine all selected ideas for article retrieval and generation
-    const combinedTitle = ideas.map((i) => i.title).join(" + ");
-    const combinedDescription = ideas
-      .map((i) => i.description)
-      .filter(Boolean)
-      .join("\n\n");
-    const ideaText = `${combinedTitle} ${combinedDescription}`;
-    const articles = await retrieveRelevantArticles(ideaText);
-
-    // Generate the post
-    const draft = await generateLinkedInPost({
-      idea: combinedTitle,
-      ideaDescription: combinedDescription || undefined,
-      stylePrompt: style.promptText,
-      articles: articles.map((a: any) => ({
-        title: a.title,
-        content: a.content,
-        url: a.url,
-      })),
-    });
-
-    // Store the generated post — link to the first idea as primary
-    const primaryIdeaId = ideas[0].id;
-    const post = await prisma.generatedPost.create({
-      data: {
-        ideaId: primaryIdeaId,
-        draftContent: draft,
-        finalContent: draft,
-        status: "draft",
-      },
-    });
-
-    // Mark all selected ideas as used
-    await prisma.dailyIdea.updateMany({
-      where: { id: { in: ideaIds } },
-      data: { status: "used" },
-    });
-
-    return { post, articles };
+    const post = await generatePost(formData);
+    return { post };
   } catch (err: any) {
     console.error("composePost error:", err);
     throw new Error(err?.message || "Failed to compose post");

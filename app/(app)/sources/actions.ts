@@ -42,3 +42,22 @@ export async function deleteSource(id: string) {
     throw new Error(err?.message || "Failed to delete source");
   }
 }
+
+export async function getSourceArticleCounts() {
+  try {
+    const result = await prisma.$queryRaw<
+      Array<{ source_id: string; count: bigint }>
+    >`
+      SELECT source_id, COUNT(*) as count
+      FROM articles
+      WHERE source_id IS NOT NULL
+      GROUP BY source_id
+    `;
+    return Object.fromEntries(
+      result.map((row) => [row.source_id, Number(row.count)])
+    );
+  } catch (err) {
+    console.error("getSourceArticleCounts error:", err);
+    return {};
+  }
+}
