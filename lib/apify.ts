@@ -14,6 +14,16 @@ function getApiKey(): string {
   return apiKey;
 }
 
+function getWebhookUrl(): string | null {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!baseUrl) return null;
+  // Localhost won't work for webhooks — Apify can't reach it
+  if (baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")) {
+    return null;
+  }
+  return `${baseUrl}/api/webhooks/apify`;
+}
+
 interface ApifyPost {
   text?: string;
   postedAtISO?: string;
@@ -63,30 +73,52 @@ function parsePosts(items: ApifyPost[]): {
 }
 
 /**
+ * Build ad-hoc webhook config for Apify.
+ * Tells Apify to POST to our webhook endpoint when the run succeeds or fails.
+ */
+function buildWebhookConfig(): string | null {
+  const webhookUrl = getWebhookUrl();
+  if (!webhookUrl) return null;
+
+  const config = [
+    {
+      eventTypes: ["ACTOR.RUN.SUCCEEDED", "ACTOR.RUN.FAILED"],
+      requestUrl: webhookUrl,
+      payloadTemplate: '{"runId":"{{resource.id}}","status":"{{resource.status}}"}',
+    },
+  ];
+
+  return Buffer.from(JSON.stringify(config)).toString("base64");
+}
+
+/**
  * Start an Apify scrape for a LinkedIn profile.
  * Returns the runId immediately — does NOT wait for completion.
- * The caller is responsible for polling `checkScrapeStatus(runId)`.
+ * If deployed, registers an ad-hoc webhook so Apify calls us back.
+ * If local, caller must poll or fetch manually.
  */
 export async function startLinkedInScrape(
   profileUrl: string
 ): Promise<string> {
   const apiKey = getApiKey();
 
-  const runResponse = await fetch(
-    `${APIFY_BASE_URL}/acts/${ACTOR_ID}/runs`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        urls: [profileUrl],
-        maxPosts: 50,
-        proxyConfiguration: { useApifyProxy: false },
-      }),
-    }
-  );
+  let url = `${APIFY_BASE_URL}/acts/${ACTOR_ID}/runs?token=${apiKey}`;
+  const webhooks = buildWebhookConfig();
+  if (webhooks) {
+    url += `&webhooks=${encodeURIComponent(webhooks)}`;
+  }
+
+  const runResponse = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      urls: [profileUrl],
+      maxPosts: 50,
+      proxyConfiguration: { useApifyProxy: false },
+    }),
+  });
 
   if (!runResponse.ok) {
     const error = await runResponse.text();
@@ -168,6 +200,26 @@ export async function checkScrapeStatus(
   const { posts, displayName } = parsePosts(items);
 
   return { status: "succeeded", posts, displayName };
+}
+
+/**
+ * Fetch posts directly from an Apify dataset URL.
+ * Used for manual fallback when user pastes a dataset URL.
+ */
+export async function fetchFromDatasetUrl(
+  datasetUrl: string
+): Promise<{
+  posts: ScrapedPost[];
+  displayName: string | null;
+}> {
+  const res = await fetch(datasetUrl);
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch dataset: ${res.status} ${await res.text()}`);
+  }
+
+  const items: ApifyPost[] = await res.json();
+  return parsePosts(items);
 }
 
 /**

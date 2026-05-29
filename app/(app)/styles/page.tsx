@@ -12,6 +12,7 @@ import {
   removeLinkedInProfile,
   generateStyleFingerprint,
   checkLinkedInScrapeStatus,
+  fetchFromDatasetUrlAction,
 } from "./profile-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -208,6 +209,11 @@ export default async function StylesPage() {
               onCheckStatus={async (id) => {
                 "use server";
                 return await checkLinkedInScrapeStatus(id);
+              }}
+              onFetchFromDatasetUrl={async (id, url) => {
+                "use server";
+                await fetchFromDatasetUrlAction(id, url);
+                revalidatePath("/styles");
               }}
             />
           </CardContent>

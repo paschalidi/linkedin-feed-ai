@@ -14,6 +14,7 @@ import {
   ExternalLink,
   CheckCircle2,
   AlertCircle,
+  Download,
 } from "lucide-react";
 
 interface LinkedInProfile {
@@ -40,6 +41,7 @@ interface LinkedInProfileListProps {
     | { status: "failed"; message: string }
     | { status: "succeeded"; postCount: number; displayName: string | null }
   >;
+  onFetchFromDatasetUrl: (id: string, url: string) => Promise<void>;
 }
 
 function formatDate(date: Date | null): string {
@@ -73,6 +75,7 @@ export default function LinkedInProfileList({
   onRemove,
   onGenerateFingerprint,
   onCheckStatus,
+  onFetchFromDatasetUrl,
 }: LinkedInProfileListProps) {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -82,6 +85,10 @@ export default function LinkedInProfileList({
   const [resyncingId, setResyncingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [generating, startGenerate] = useTransition();
+
+  // Dataset URL inputs per profile
+  const [datasetUrls, setDatasetUrls] = useState<Record<string, string>>({});
+  const [fetchingId, setFetchingId] = useState<string | null>(null);
 
   // Track which profiles are currently scraping (by runId)
   const [scrapingIds, setScrapingIds] = useState<Set<string>>(() => {
@@ -199,6 +206,24 @@ export default function LinkedInProfileList({
     }
   };
 
+  const handleFetchDataset = async (id: string) => {
+    const datasetUrl = datasetUrls[id];
+    if (!datasetUrl?.trim()) return;
+
+    setError(null);
+    setFetchingId(id);
+    try {
+      await onFetchFromDatasetUrl(id, datasetUrl.trim());
+      setDatasetUrls((prev) => ({ ...prev, [id]: "" }));
+      setSuccess("Posts fetched from dataset URL!");
+      router.refresh();
+    } catch (err: any) {
+      setError(err?.message || "Failed to fetch dataset");
+    } finally {
+      setFetchingId(null);
+    }
+  };
+
   const handleGenerate = () => {
     setError(null);
     setSuccess(null);
@@ -256,72 +281,113 @@ export default function LinkedInProfileList({
           cloning their voice.
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {profiles.map((profile) => {
             const isScraping = scrapingIds.has(profile.id);
+            const isPending = !!profile.apifyRunId && (profile.postCount || 0) === 0;
             return (
               <div
                 key={profile.id}
-                className="flex items-center justify-between rounded-lg border p-4"
+                className="rounded-lg border p-4 space-y-3"
               >
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">
-                      {profile.displayName ||
-                        extractUsername(profile.profileUrl)}
-                    </span>
-                    <a
-                      href={profile.profileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground shrink-0"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                    {isScraping && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs text-amber-600 border-amber-200 bg-amber-50"
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm truncate">
+                        {profile.displayName ||
+                          extractUsername(profile.profileUrl)}
+                      </span>
+                      <a
+                        href={profile.profileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-foreground shrink-0"
                       >
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        Scraping...
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                      {isScraping && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-amber-600 border-amber-200 bg-amber-50"
+                        >
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Scraping...
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="text-xs">
+                        {profile.postCount || 0} posts
                       </Badge>
-                    )}
+                      <span>·</span>
+                      <span>Synced {formatDate(profile.lastSyncedAt)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="secondary" className="text-xs">
-                      {profile.postCount || 0} posts
-                    </Badge>
-                    <span>·</span>
-                    <span>Synced {formatDate(profile.lastSyncedAt)}</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleResync(profile.id)}
+                      disabled={isScraping || resyncingId === profile.id}
+                    >
+                      {isScraping || resyncingId === profile.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemove(profile.id)}
+                      disabled={removingId === profile.id}
+                    >
+                      {removingId === profile.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleResync(profile.id)}
-                    disabled={isScraping || resyncingId === profile.id}
-                  >
-                    {isScraping || resyncingId === profile.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemove(profile.id)}
-                    disabled={removingId === profile.id}
-                  >
-                    {removingId === profile.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                </div>
+
+                {/* Manual dataset fetch — shown for pending or as a collapsible option */}
+                {(isPending || isScraping) && (
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Scrape is running. If webhooks are not configured (e.g.,
+                      local dev), paste the Apify dataset URL here when the run
+                      finishes.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="https://api.apify.com/v2/datasets/XXXX/items?token=..."
+                        value={datasetUrls[profile.id] || ""}
+                        onChange={(e) =>
+                          setDatasetUrls((prev) => ({
+                            ...prev,
+                            [profile.id]: e.target.value,
+                          }))
+                        }
+                        className="text-xs"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleFetchDataset(profile.id)}
+                        disabled={
+                          fetchingId === profile.id ||
+                          !datasetUrls[profile.id]?.trim()
+                        }
+                      >
+                        {fetchingId === profile.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

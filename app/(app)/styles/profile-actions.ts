@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   startLinkedInScrape,
   checkScrapeStatus,
+  fetchFromDatasetUrl,
 } from "@/lib/apify";
 
 export async function getLinkedInProfiles() {
@@ -162,6 +163,42 @@ export async function removeLinkedInProfile(id: string) {
   } catch (err: any) {
     console.error("removeLinkedInProfile error:", err);
     throw new Error(err?.message || "Failed to remove LinkedIn profile");
+  }
+}
+
+export async function fetchFromDatasetUrlAction(
+  id: string,
+  datasetUrl: string
+) {
+  try {
+    const profile = await prisma.linkedInProfile.findUnique({
+      where: { id },
+    });
+    if (!profile) {
+      throw new Error("Profile not found");
+    }
+
+    const { posts, displayName } = await fetchFromDatasetUrl(datasetUrl);
+
+    if (posts.length === 0) {
+      throw new Error("No posts found in the provided dataset URL.");
+    }
+
+    await prisma.linkedInProfile.update({
+      where: { id },
+      data: {
+        displayName: displayName || profile.displayName,
+        postsJson: JSON.stringify(posts),
+        lastSyncedAt: new Date(),
+        postCount: posts.length,
+        apifyRunId: null,
+      },
+    });
+
+    return { success: true, postCount: posts.length, displayName };
+  } catch (err: any) {
+    console.error("fetchFromDatasetUrlAction error:", err);
+    throw new Error(err?.message || "Failed to fetch dataset");
   }
 }
 
