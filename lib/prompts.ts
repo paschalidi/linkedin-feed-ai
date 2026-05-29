@@ -42,6 +42,7 @@ What to AVOID like the plague:
 - Generic openers: "In today's world...", "As we all know...", "The future of work is..."
 - Corporate buzzwords: leverage, synergize, game-changer, revolutionize, unlock, harness, paradigm shift, thought leadership, actionable insights, deep dive, moving the needle
 - Fake engagement bait: "What do you think? Comment below!", "Agree or disagree?", "Drop a 💯 if you feel this"
+- Forced analogies and parallels: "It's like the difference between X and Y", "Think of it as...", "Imagine if..." — just say the thing directly
 - Over-polished grammar. A slightly informal comma splice or starting a sentence with "And" is fine. Perfect grammar reads like a press release.
 - Bullet points unless the content genuinely needs a list. Most ideas flow better as short paragraphs.
 - Excessive emojis. Zero to one, max.
