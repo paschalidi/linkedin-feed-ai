@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { generateLinkedInPost } from "@/lib/gemini";
 import { retrieveRelevantArticles } from "../compose/actions";
+import { createLinkedInPost } from "@/lib/zernio";
 
 interface Version {
   content: string;
@@ -178,5 +179,47 @@ export async function regeneratePost(id: string) {
   } catch (err: any) {
     console.error("regeneratePost error:", err);
     throw new Error(err?.message || "Failed to regenerate post");
+  }
+}
+
+export async function publishToLinkedIn(id: string) {
+  try {
+    const post = await prisma.generatedPost.findUnique({
+      where: { id },
+      include: { idea: true },
+    });
+
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
+    const content = post.finalContent || post.draftContent;
+    if (!content || content.trim().length === 0) {
+      throw new Error("Post has no content to publish");
+    }
+
+    const accountId = process.env.ZERNIO_LINKEDIN_ACCOUNT_ID;
+    if (!accountId) {
+      throw new Error(
+        "ZERNIO_LINKEDIN_ACCOUNT_ID is not configured. Add it to your .env.local file."
+      );
+    }
+
+    const result = await createLinkedInPost(content, accountId);
+
+    // Mark as posted and record the LinkedIn post ID
+    await prisma.generatedPost.update({
+      where: { id },
+      data: {
+        status: "posted",
+        linkedInPostId: result.postId,
+        publishedToLinkedInAt: new Date(),
+      },
+    });
+
+    return { success: true, postId: result.postId, postUrl: result.postUrl };
+  } catch (err: any) {
+    console.error("publishToLinkedIn error:", err);
+    throw new Error(err?.message || "Failed to publish to LinkedIn");
   }
 }

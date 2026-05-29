@@ -101,6 +101,8 @@ model GeneratedPost {
   status              String    @default("draft") // "draft" | "approved" | "posted"
   versions            String?   @map("versions") @db.Text
   currentVersionIndex Int?      @map("current_version_index")
+  linkedInPostId      String?   @map("linkedin_post_id")
+  publishedToLinkedInAt DateTime? @map("published_to_linkedin_at")
   createdAt           DateTime  @default(now()) @map("created_at")
 
   @@map("generated_posts")

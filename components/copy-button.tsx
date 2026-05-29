@@ -16,20 +16,14 @@ export function CopyButton({ text }: { text: string }) {
   return (
     <Button
       variant="outline"
-      size="sm"
+      size="icon"
       onClick={handleCopy}
-      className="gap-2"
+      title={copied ? "Copied!" : "Copy to clipboard"}
     >
       {copied ? (
-        <>
-          <Check className="h-4 w-4" />
-          Copied
-        </>
+        <Check className="h-4 w-4" />
       ) : (
-        <>
-          <Copy className="h-4 w-4" />
-          Copy to Clipboard
-        </>
+        <Copy className="h-4 w-4" />
       )}
     </Button>
   );

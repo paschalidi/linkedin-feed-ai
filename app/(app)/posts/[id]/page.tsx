@@ -11,11 +11,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CopyCheck, CheckCircle, ArrowLeft } from "lucide-react";
+import { CheckCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
 import { RegenerateButton } from "./regenerate-button";
 import { VersionToolbar } from "./version-toolbar";
+import { PublishToLinkedInButton } from "./publish-to-linkedin-button";
 
 export default async function PostDetailPage({
   params,
@@ -116,7 +117,7 @@ export default async function PostDetailPage({
                   className="font-mono text-base leading-relaxed"
                 />
 
-                <div className="flex flex-wrap gap-4">
+                <div className="flex flex-wrap gap-4 items-center">
                   <Button
                     type="submit"
                     name="status"
@@ -128,25 +129,15 @@ export default async function PostDetailPage({
                     Approve
                   </Button>
 
-                  <Button
-                    type="submit"
-                    name="status"
-                    value="posted"
-                    variant="secondary"
-                    className="text-base"
-                  >
-                    <CopyCheck className="h-5 w-5 mr-2" />
-                    Mark as Posted
-                  </Button>
+                  {!post.publishedToLinkedInAt && (
+                    <PublishToLinkedInButton postId={id} />
+                  )}
+
+                  <RegenerateButton postId={id} />
 
                   <CopyButton text={post.finalContent || post.draftContent} />
                 </div>
               </form>
-
-              {/* Regenerate */}
-              <div className="mt-4">
-                <RegenerateButton postId={id} />
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -185,6 +176,26 @@ export default async function PostDetailPage({
                 {(post.finalContent || post.draftContent).length} characters
               </p>
             </div>
+
+            {post.publishedToLinkedInAt && (
+              <div>
+                <p className="text-base font-medium text-blue-600">
+                  Published to LinkedIn
+                </p>
+                <p className="text-base text-muted-foreground">
+                  {new Date(post.publishedToLinkedInAt).toLocaleDateString()} at{" "}
+                  {new Date(post.publishedToLinkedInAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+                {post.linkedInPostId && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Post ID: {post.linkedInPostId}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Version History */}
             {versions.length > 0 && (
