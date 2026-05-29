@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { addSource, deleteSource, getSources, getSourceArticleCounts } from "./actions";
-import { ingestArticle, getAllArticles } from "./ingest-actions";
+import { ingestArticle, getArticlesPage } from "./ingest-actions";
 import { syncRSSFeed, syncAllRSSFeeds } from "./rss-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,19 +29,26 @@ import {
   CheckCircle,
   AlertCircle,
   FileText,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+
+const PAGE_SIZE = 100;
 
 export default async function SourcesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ syncResult?: string }>;
+  searchParams: Promise<{ syncResult?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const sources = await getSources();
   const articleCounts = await getSourceArticleCounts();
   const totalArticles = Object.values(articleCounts).reduce((a, b) => a + b, 0);
 
-  const articles = await getAllArticles();
+  const currentPage = Math.max(1, parseInt(params.page || "1", 10));
+  const { articles, totalCount } = await getArticlesPage(currentPage, PAGE_SIZE);
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
   const rssSources = sources.filter((s) => s.type === "rss");
   const syncResultJson = params.syncResult;
   let syncResult:
@@ -173,19 +180,7 @@ export default async function SourcesPage({
                   action={async () => {
                     "use server";
                     const results = await syncAllRSSFeeds();
-                    const summary = results
-                      .filter((r) => r.success)
-                      .map((r) => ({
-                        sourceName: r.sourceName,
-                        ingested: r.ingested,
-                        skipped: r.skipped,
-                        failed: r.failed,
-                      }));
                     revalidatePath("/sources");
-                    if (typeof window !== "undefined") return;
-                    // Next.js redirect with query param for result display
-                    // We use the searchParams approach — but server actions can't redirect with query strings easily.
-                    // Instead we just revalidate and the user sees updated counts.
                   }}
                 >
                   <Button
@@ -321,14 +316,19 @@ export default async function SourcesPage({
         </Card>
       </div>
 
-      {/* Recent Articles */}
+      {/* Articles List with Pagination */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-xl">Recent Articles</CardTitle>
+              <CardTitle className="text-xl">Articles</CardTitle>
               <CardDescription>
-                {articles.length} article{articles.length !== 1 ? "s" : ""} ingested
+                {totalCount} article{totalCount !== 1 ? "s" : ""} ingested
+                {totalPages > 1 && (
+                  <span className="ml-1">
+                    · Page {currentPage} of {totalPages}
+                  </span>
+                )}
               </CardDescription>
             </div>
           </div>
@@ -340,44 +340,98 @@ export default async function SourcesPage({
               <p>No articles ingested yet. Add a source and click the ingest button.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {articles.slice(0, 20).map((article: any) => (
-                <div
-                  key={article.id}
-                  className="rounded-lg border p-4 space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-base truncate max-w-[500px]">
-                      {article.title}
-                    </span>
-                    <Badge variant="secondary" className="text-xs shrink-0">
-                      {article.char_count?.toLocaleString() ?? "?"} chars
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {article.url}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    {article.site_name && (
-                      <span>{article.site_name}</span>
-                    )}
-                    {article.author && (
-                      <span>by {article.author}</span>
-                    )}
-                    {article.published_at && (
-                      <span>
-                        {new Date(article.published_at).toLocaleDateString()}
+            <>
+              <div className="space-y-3">
+                {articles.map((article: any) => (
+                  <div
+                    key={article.id}
+                    className="rounded-lg border p-4 space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-base truncate max-w-[500px]">
+                        {article.title}
                       </span>
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {article.char_count?.toLocaleString() ?? "?"} chars
+                      </Badge>
+                    </div>
+                    <a
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline truncate block"
+                    >
+                      {article.url}
+                    </a>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      {article.site_name && (
+                        <span>{article.site_name}</span>
+                      )}
+                      {article.author && (
+                        <span>by {article.author}</span>
+                      )}
+                      {article.published_at && (
+                        <span>
+                          {new Date(article.published_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    {article.excerpt && (
+                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                        {article.excerpt}
+                      </p>
                     )}
                   </div>
-                  {article.excerpt && (
-                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                      {article.excerpt}
-                    </p>
-                  )}
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                  <a
+                    href={`/sources?page=${currentPage - 1}`}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-md border text-base font-medium transition-colors ${
+                      currentPage <= 1
+                        ? "pointer-events-none opacity-50 text-muted-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </a>
+
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <a
+                          key={page}
+                          href={`/sources?page=${page}`}
+                          className={`inline-flex items-center justify-center w-10 h-10 rounded-md text-sm font-medium transition-colors ${
+                            page === currentPage
+                              ? "bg-primary text-primary-foreground"
+                              : "border hover:bg-muted"
+                          }`}
+                        >
+                          {page}
+                        </a>
+                      )
+                    )}
+                  </div>
+
+                  <a
+                    href={`/sources?page=${currentPage + 1}`}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-md border text-base font-medium transition-colors ${
+                      currentPage >= totalPages
+                        ? "pointer-events-none opacity-50 text-muted-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </a>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

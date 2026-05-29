@@ -34,8 +34,26 @@ export async function addSource(formData: FormData) {
 
 export async function deleteSource(id: string) {
   try {
-    await prisma.newsletterSource.delete({
-      where: { id },
+    // Cascade delete: chunks → articles → source
+    // (DB has ON DELETE SET NULL, so we manually clean up)
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete all chunks for articles from this source
+      await tx.$executeRaw`
+        DELETE FROM article_chunks 
+        WHERE article_id IN (
+          SELECT id FROM articles WHERE source_id = ${id}
+        )
+      `;
+      
+      // 2. Delete all articles from this source
+      await tx.$executeRaw`
+        DELETE FROM articles WHERE source_id = ${id}
+      `;
+      
+      // 3. Delete the source itself
+      await tx.$executeRaw`
+        DELETE FROM newsletter_sources WHERE id = ${id}
+      `;
     });
   } catch (err: any) {
     console.error("deleteSource error:", err);

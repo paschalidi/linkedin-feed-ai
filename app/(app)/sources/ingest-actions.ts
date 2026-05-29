@@ -116,3 +116,18 @@ export async function getAllArticles() {
   if (error) throw error;
   return data;
 }
+
+export async function getArticlesPage(page: number, limit: number = 100) {
+  const supabase = await createClient();
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await supabase
+    .from("articles")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (error) throw error;
+  return { articles: data || [], totalCount: count || 0 };
+}

@@ -1,7 +1,6 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { fetchRSSFeed, filterRecentItems, RSSItem } from "@/lib/rss-parser";
 import { extractArticle, computeContentHash } from "@/lib/article-extractor";
@@ -153,13 +152,12 @@ export async function syncRSSFeed(
     const links = items
       .map((item) => getItemLink(item, feedUrl))
       .filter(Boolean);
-    const { data: existingArticles } = await (await createClient())
-      .from("articles")
-      .select("url")
-      .in("url", links);
+    const existingArticles = await prisma.$queryRaw<Array<{ url: string }>>`
+      SELECT url FROM articles WHERE url = ANY(${links}::text[])
+    `;
 
     const existingUrls = new Set(
-      (existingArticles || []).map((a) => a.url)
+      existingArticles.map((a) => a.url)
     );
 
     for (const item of items) {
