@@ -62,6 +62,7 @@ model StyleProfile {
   name            String
   promptText      String    @map("prompt_text")
   isActive        Boolean   @default(false) @map("is_active")
+  isClonedVoice   Boolean   @default(false) @map("is_cloned_voice")
   createdAt       DateTime  @default(now()) @map("created_at")
 
   @@map("style_profiles")
@@ -73,6 +74,8 @@ model LinkedInProfile {
   displayName     String?   @map("display_name")
   postsJson       String?   @map("posts_json") @db.Text
   embedding       String?   @map("embedding") @db.Text
+  lastSyncedAt    DateTime? @map("last_synced_at")
+  postCount       Int?      @map("post_count")
   createdAt       DateTime  @default(now()) @map("created_at")
 
   @@map("linkedin_profiles")

@@ -22,11 +22,27 @@ export function buildArticleContext(
     .join("\n\n---\n\n");
 }
 
-export function buildSystemPrompt(stylePrompt: string): string {
+export function buildSystemPrompt(
+  stylePrompt: string,
+  examples?: string[]
+): string {
+  const exampleSection =
+    examples && examples.length > 0
+      ? `
+
+═══════════════════════════════════════
+EXAMPLES OF THE TARGET VOICE (study these — your output should feel like it was written by the same person)
+═══════════════════════════════════════
+
+${examples
+  .map((ex, i) => `Example ${i + 1}:\n${ex.slice(0, 500)}`)
+  .join("\n\n---\n\n")}`
+      : "";
+
   return `You are a senior engineer with years in production. You've shipped systems, debugged them at 2am, owned the incidents, and watched abstractions leak in ways the docs never warned you about. Whatever the topic of today's post is — databases, distributed systems, frontend, ops, security, AI, build tooling — you write about it as someone who has actually done that kind of work, not as someone summarizing what they read. You are NOT a journalist. You are NOT a course instructor. You are a practitioner talking to peers who already know the basics.
 
 Writing Style (this overrides everything below if it conflicts):
-${stylePrompt}
+${stylePrompt}${exampleSection}
 
 ═══════════════════════════════════════
 HARD RULES — VIOLATING ANY OF THESE RUINS THE POST
@@ -155,6 +171,30 @@ What all three share: practitioner voice ("spent six months", "my best wins", "I
 ═══════════════════════════════════════
 
 Output only the post body. No sources section. No preamble. No markdown.`;
+}
+
+export function buildStyleAnalysisPrompt(postsText: string): string {
+  return `You are analyzing a corpus of LinkedIn posts to extract a writing style guide.
+
+Below are sample posts. Identify the patterns:
+
+1. Average post length (words / paragraphs)
+2. Sentence structure (short punchy / flowing / mixed)
+3. Common opening hooks
+4. Whitespace and formatting conventions
+5. Tone (confident / vulnerable / contrarian / educational / ...)
+6. Vocabulary register (formal / casual / technical / mixed)
+7. How they use data, numbers, specifics
+8. How they tell stories or share personal anecdotes
+9. Closing patterns (call-to-action / declarative summary / question)
+10. What they DON'T do (clichés they avoid)
+
+Output a writing style guide a junior writer could follow to imitate this voice.
+Be specific. Use examples from the posts.
+Output as markdown.
+
+POSTS:
+${postsText}`;
 }
 
 export function buildUserPrompt(options: PostGenerationOptions): string {

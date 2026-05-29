@@ -107,13 +107,14 @@ async function generateWithModel(
     ideaDescription?: string;
     stylePrompt: string;
     articles: Array<{ title: string; content: string; url: string }>;
+    examples?: string[];
   },
   modelName: string
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(getApiKey());
   const model = genAI.getGenerativeModel({ model: modelName });
 
-  const systemPrompt = buildSystemPrompt(options.stylePrompt);
+  const systemPrompt = buildSystemPrompt(options.stylePrompt, options.examples);
   const userPrompt = buildUserPrompt(options);
 
   const result = await model.generateContent({
@@ -133,6 +134,7 @@ export async function generateLinkedInPost(options: {
   ideaDescription?: string;
   stylePrompt: string;
   articles: Array<{ title: string; content: string; url: string }>;
+  examples?: string[];
 }): Promise<string> {
   // Try models in order: flash-lite (higher free quota) -> flash (better quality)
   const models = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];

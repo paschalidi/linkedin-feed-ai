@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { generateLinkedInPost } from "@/lib/gemini";
 import { retrieveRelevantArticles } from "../compose/actions";
 import { createLinkedInPost } from "@/lib/zernio";
+import { getRandomSamplePosts } from "@/lib/linkedin-style";
 
 interface Version {
   content: string;
@@ -122,6 +123,12 @@ export async function regeneratePost(id: string) {
     // Re-retrieve relevant articles with the same idea
     const articles = await retrieveRelevantArticles(ideaText);
 
+    // If using a cloned voice, inject few-shot examples
+    let examples: string[] | undefined;
+    if (style.isClonedVoice) {
+      examples = await getRandomSamplePosts(3);
+    }
+
     // Generate a fresh draft
     const draft = await generateLinkedInPost({
       idea: idea.title,
@@ -133,6 +140,7 @@ export async function regeneratePost(id: string) {
         url: a.url,
         bestChunk: a.best_chunk,
       })),
+      examples,
     });
 
     const draftWithSources = draft.trim();

@@ -5,6 +5,13 @@ import {
   getStyleProfiles,
   setActiveProfile,
 } from "./actions";
+import {
+  getLinkedInProfiles,
+  addLinkedInProfile,
+  resyncLinkedInProfile,
+  removeLinkedInProfile,
+  generateStyleFingerprint,
+} from "./profile-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,9 +24,11 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Palette, Trash2, Star, Plus } from "lucide-react";
+import LinkedInProfileList from "./linkedin-profile-list";
 
 export default async function StylesPage() {
   const profiles = await getStyleProfiles();
+  const linkedInProfiles = await getLinkedInProfiles();
 
   return (
     <div className="space-y-10">
@@ -146,6 +155,56 @@ export default async function StylesPage() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* LinkedIn Style Cloning */}
+      <div>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold tracking-tight">
+            LinkedIn Style Cloning
+          </h2>
+          <p className="text-muted-foreground mt-1">
+            Add LinkedIn profiles you admire. The AI will analyze their posts and
+            create a style fingerprint you can use to write like them.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">
+              LinkedIn Profiles
+            </CardTitle>
+            <CardDescription>
+              {linkedInProfiles.length} profile
+              {linkedInProfiles.length !== 1 ? "s" : ""} added
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LinkedInProfileList
+              profiles={linkedInProfiles}
+              onAdd={async (url) => {
+                "use server";
+                await addLinkedInProfile(url);
+                revalidatePath("/styles");
+              }}
+              onResync={async (id) => {
+                "use server";
+                await resyncLinkedInProfile(id);
+                revalidatePath("/styles");
+              }}
+              onRemove={async (id) => {
+                "use server";
+                await removeLinkedInProfile(id);
+                revalidatePath("/styles");
+              }}
+              onGenerateFingerprint={async () => {
+                "use server";
+                await generateStyleFingerprint();
+                revalidatePath("/styles");
+              }}
+            />
           </CardContent>
         </Card>
       </div>

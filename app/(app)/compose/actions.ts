@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { generateEmbedding, generateLinkedInPost } from "@/lib/gemini";
+import { getRandomSamplePosts } from "@/lib/linkedin-style";
 
 export async function getIdeasForCompose() {
   try {
@@ -184,6 +185,12 @@ export async function generatePost(formData: FormData) {
 
   const articles = await retrieveRelevantArticles(ideaText);
 
+  // If using a cloned voice, inject few-shot examples
+  let examples: string[] | undefined;
+  if (style.isClonedVoice) {
+    examples = await getRandomSamplePosts(3);
+  }
+
   const draft = await generateLinkedInPost({
     idea: combinedTitle,
     ideaDescription: combinedDescription || undefined,
@@ -194,6 +201,7 @@ export async function generatePost(formData: FormData) {
       url: a.url,
       bestChunk: a.best_chunk,
     })),
+    examples,
   });
 
   const draftWithSources = draft.trim();
