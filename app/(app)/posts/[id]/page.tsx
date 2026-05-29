@@ -15,7 +15,7 @@ import { CopyCheck, CheckCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
 import { RegenerateButton } from "./regenerate-button";
-import { VersionNavigator } from "./version-navigator";
+import { VersionToolbar } from "./version-toolbar";
 
 export default async function PostDetailPage({
   params,
@@ -53,103 +53,103 @@ export default async function PostDetailPage({
         </Link>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">
-            {idea?.title || "Generated Post"}
-          </h1>
-          <div className="flex items-center gap-2 mt-2">
-            <Badge
-              variant={
-                post.status === "approved"
-                  ? "default"
-                  : post.status === "posted"
-                  ? "secondary"
-                  : "outline"
-              }
-            >
-              {post.status}
-            </Badge>
-            <span className="text-base text-muted-foreground">
-              {new Date(post.createdAt).toLocaleDateString()}
-            </span>
-          </div>
+      <div>
+        <h1 className="text-4xl font-bold tracking-tight">
+          {idea?.title || "Generated Post"}
+        </h1>
+        <div className="flex items-center gap-2 mt-2">
+          <Badge
+            variant={
+              post.status === "approved"
+                ? "default"
+                : post.status === "posted"
+                ? "secondary"
+                : "outline"
+            }
+          >
+            {post.status}
+          </Badge>
+          <span className="text-base text-muted-foreground">
+            {new Date(post.createdAt).toLocaleDateString()}
+          </span>
         </div>
-
-        {/* Version Navigator */}
-        {totalVersions > 1 && (
-          <VersionNavigator
-            postId={id}
-            currentIndex={displayIndex}
-            totalVersions={totalVersions}
-          />
-        )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Post Editor */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-xl">Draft</CardTitle>
-            <CardDescription>
-              Edit and finalize your LinkedIn post
-              {totalVersions > 1 && (
-                <span className="ml-2 text-xs">
-                  (viewing version {displayIndex + 1} of {totalVersions})
-                </span>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              action={async (formData) => {
-                "use server";
-                await updatePost(formData);
-                revalidatePath(`/posts/${id}`);
-              }}
-              className="space-y-5"
-            >
-              <input type="hidden" name="id" value={post.id} />
-              <Textarea
-                name="final_content"
-                defaultValue={post.finalContent || post.draftContent}
-                rows={20}
-                className="font-mono text-base leading-relaxed"
-              />
+        <div className="lg:col-span-2 space-y-4">
+          {/* Version Toolbar */}
+          {totalVersions > 1 && (
+            <VersionToolbar
+              postId={id}
+              currentIndex={displayIndex}
+              totalVersions={totalVersions}
+            />
+          )}
 
-              <div className="flex flex-wrap gap-4">
-                <Button
-                  type="submit"
-                  name="status"
-                  value="approved"
-                  variant="default"
-                  className="text-base"
-                >
-                  <CheckCircle className="h-5 w-5 mr-2" />
-                  Approve
-                </Button>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Draft</CardTitle>
+              <CardDescription>
+                Edit and finalize your LinkedIn post
+                {totalVersions > 1 && (
+                  <span className="ml-2 text-xs font-medium text-primary">
+                    (viewing version {displayIndex + 1} of {totalVersions})
+                  </span>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form
+                action={async (formData) => {
+                  "use server";
+                  await updatePost(formData);
+                  revalidatePath(`/posts/${id}`);
+                }}
+                className="space-y-5"
+              >
+                <input type="hidden" name="id" value={post.id} />
+                <Textarea
+                  name="final_content"
+                  defaultValue={post.finalContent || post.draftContent}
+                  rows={20}
+                  className="font-mono text-base leading-relaxed"
+                />
 
-                <Button
-                  type="submit"
-                  name="status"
-                  value="posted"
-                  variant="secondary"
-                  className="text-base"
-                >
-                  <CopyCheck className="h-5 w-5 mr-2" />
-                  Mark as Posted
-                </Button>
+                <div className="flex flex-wrap gap-4">
+                  <Button
+                    type="submit"
+                    name="status"
+                    value="approved"
+                    variant="default"
+                    className="text-base"
+                  >
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    Approve
+                  </Button>
 
-                <CopyButton text={post.finalContent || post.draftContent} />
+                  <Button
+                    type="submit"
+                    name="status"
+                    value="posted"
+                    variant="secondary"
+                    className="text-base"
+                  >
+                    <CopyCheck className="h-5 w-5 mr-2" />
+                    Mark as Posted
+                  </Button>
+
+                  <CopyButton text={post.finalContent || post.draftContent} />
+                </div>
+              </form>
+
+              {/* Regenerate */}
+              <div className="mt-4">
+                <RegenerateButton postId={id} />
               </div>
-            </form>
-
-            {/* Regenerate */}
-            <div className="mt-4">
-              <RegenerateButton postId={id} />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Meta Info */}
         <Card className="lg:col-span-1">
