@@ -1,15 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
@@ -28,6 +22,7 @@ interface LinkedInProfile {
   displayName: string | null;
   postCount: number | null;
   lastSyncedAt: Date | null;
+  apifyRunId: string | null;
   createdAt: Date;
 }
 
@@ -37,6 +32,14 @@ interface LinkedInProfileListProps {
   onResync: (id: string) => Promise<void>;
   onRemove: (id: string) => Promise<void>;
   onGenerateFingerprint: () => Promise<void>;
+  onCheckStatus: (
+    id: string
+  ) => Promise<
+    | { status: "idle" }
+    | { status: "running"; message: string }
+    | { status: "failed"; message: string }
+    | { status: "succeeded"; postCount: number; displayName: string | null }
+  >;
 }
 
 function formatDate(date: Date | null): string {
@@ -69,7 +72,9 @@ export default function LinkedInProfileList({
   onResync,
   onRemove,
   onGenerateFingerprint,
+  onCheckStatus,
 }: LinkedInProfileListProps) {
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -78,10 +83,75 @@ export default function LinkedInProfileList({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [generating, startGenerate] = useTransition();
 
+  // Track which profiles are currently scraping (by runId)
+  const [scrapingIds, setScrapingIds] = useState<Set<string>>(() => {
+    return new Set(
+      profiles.filter((p) => p.apifyRunId).map((p) => p.id)
+    );
+  });
+
+  // Keep scrapingIds in sync when profiles prop changes
+  useEffect(() => {
+    const pending = new Set(
+      profiles.filter((p) => p.apifyRunId).map((p) => p.id)
+    );
+    setScrapingIds(pending);
+  }, [profiles]);
+
   const totalPosts = profiles.reduce(
     (sum, p) => sum + (p.postCount || 0),
     0
   );
+
+  // Poll for pending scrapes every 5 seconds
+  const pollPending = useCallback(async () => {
+    if (scrapingIds.size === 0) return;
+
+    const idsToCheck = Array.from(scrapingIds);
+    let anyCompleted = false;
+
+    for (const id of idsToCheck) {
+      try {
+        const result = await onCheckStatus(id);
+
+        if (result.status === "succeeded") {
+          setScrapingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+          setSuccess(
+            `Scraped ${result.postCount} posts from ${result.displayName || "profile"}!`
+          );
+          anyCompleted = true;
+        } else if (result.status === "failed") {
+          setScrapingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+          setError(result.message);
+        }
+        // "running" — keep polling
+      } catch (err: any) {
+        console.error("Poll error:", err);
+      }
+    }
+
+    if (anyCompleted) {
+      router.refresh();
+    }
+  }, [scrapingIds, onCheckStatus, router]);
+
+  useEffect(() => {
+    if (scrapingIds.size === 0) return;
+
+    const interval = setInterval(pollPending, 5000);
+    // Also check immediately
+    pollPending();
+
+    return () => clearInterval(interval);
+  }, [scrapingIds, pollPending]);
 
   const handleAdd = () => {
     setError(null);
@@ -90,7 +160,10 @@ export default function LinkedInProfileList({
       try {
         await onAdd(url);
         setUrl("");
-        setSuccess("Profile added and posts scraped successfully!");
+        setSuccess(
+          "Scrape started! It can take 1–3 minutes. The profile will appear once posts are ready."
+        );
+        router.refresh();
       } catch (err: any) {
         setError(err?.message || "Failed to add profile");
       }
@@ -102,7 +175,9 @@ export default function LinkedInProfileList({
     setResyncingId(id);
     try {
       await onResync(id);
-      setSuccess("Profile resynced successfully!");
+      setSuccess("Resync started! Checking for new posts...");
+      setScrapingIds((prev) => new Set(prev).add(id));
+      router.refresh();
     } catch (err: any) {
       setError(err?.message || "Failed to resync profile");
     } finally {
@@ -116,6 +191,7 @@ export default function LinkedInProfileList({
     try {
       await onRemove(id);
       setSuccess("Profile removed.");
+      router.refresh();
     } catch (err: any) {
       setError(err?.message || "Failed to remove profile");
     } finally {
@@ -129,7 +205,9 @@ export default function LinkedInProfileList({
     startGenerate(async () => {
       try {
         await onGenerateFingerprint();
-        setSuccess("Style fingerprint generated! 'Cloned Voice' is now your active style.");
+        setSuccess(
+          "Style fingerprint generated! 'Cloned Voice' is now your active style."
+        );
       } catch (err: any) {
         setError(err?.message || "Failed to generate fingerprint");
       }
@@ -179,62 +257,74 @@ export default function LinkedInProfileList({
         </p>
       ) : (
         <div className="space-y-3">
-          {profiles.map((profile) => (
-            <div
-              key={profile.id}
-              className="flex items-center justify-between rounded-lg border p-4"
-            >
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm truncate">
-                    {profile.displayName ||
-                      extractUsername(profile.profileUrl)}
-                  </span>
-                  <a
-                    href={profile.profileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground shrink-0"
+          {profiles.map((profile) => {
+            const isScraping = scrapingIds.has(profile.id);
+            return (
+              <div
+                key={profile.id}
+                className="flex items-center justify-between rounded-lg border p-4"
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm truncate">
+                      {profile.displayName ||
+                        extractUsername(profile.profileUrl)}
+                    </span>
+                    <a
+                      href={profile.profileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-foreground shrink-0"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                    {isScraping && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-amber-600 border-amber-200 bg-amber-50"
+                      >
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Scraping...
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="secondary" className="text-xs">
+                      {profile.postCount || 0} posts
+                    </Badge>
+                    <span>·</span>
+                    <span>Synced {formatDate(profile.lastSyncedAt)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleResync(profile.id)}
+                    disabled={isScraping || resyncingId === profile.id}
                   >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="secondary" className="text-xs">
-                    {profile.postCount || 0} posts
-                  </Badge>
-                  <span>·</span>
-                  <span>Synced {formatDate(profile.lastSyncedAt)}</span>
+                    {isScraping || resyncingId === profile.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemove(profile.id)}
+                    disabled={removingId === profile.id}
+                  >
+                    {removingId === profile.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleResync(profile.id)}
-                  disabled={resyncingId === profile.id}
-                >
-                  {resyncingId === profile.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemove(profile.id)}
-                  disabled={removingId === profile.id}
-                >
-                  {removingId === profile.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -76,6 +76,7 @@ model LinkedInProfile {
   embedding       String?   @map("embedding") @db.Text
   lastSyncedAt    DateTime? @map("last_synced_at")
   postCount       Int?      @map("post_count")
+  apifyRunId      String?   @map("apify_run_id")
   createdAt       DateTime  @default(now()) @map("created_at")
 
   @@map("linkedin_profiles")

@@ -1,4 +1,5 @@
 const APIFY_BASE_URL = "https://api.apify.com/v2";
+const ACTOR_ID = "scraper-engine~linkedin-profile-post-scraper";
 
 function getApiKey(): string {
   const apiKey = process.env.APIFY_API_TOKEN;
@@ -39,24 +40,40 @@ export interface ScrapedPost {
   };
 }
 
-/**
- * Fetch public LinkedIn posts from a profile URL via Apify.
- *
- * Uses the scraper-engine/linkedin-profile-post-scraper actor which has
- * a 100% success rate and good reviews. No cookies required.
- */
-export async function fetchLinkedInPosts(
-  profileUrl: string
-): Promise<{
+function parsePosts(items: ApifyPost[]): {
   posts: ScrapedPost[];
   displayName: string | null;
-}> {
-  const apiKey = getApiKey();
-  const actorId = "scraper-engine~linkedin-profile-post-scraper";
+} {
+  const posts: ScrapedPost[] = items
+    .filter((item) => item.text && item.text.trim().length > 10)
+    .map((item) => ({
+      text: item.text!.trim(),
+      postedAt: item.postedAtISO || item.date || null,
+      url: item.url || null,
+      engagement: {
+        likes: item.numLikes ?? item.likes ?? item.likesCount ?? 0,
+        comments: item.numComments ?? item.comments ?? item.commentsCount ?? 0,
+      },
+    }));
 
-  // 1. Start the actor run
+  const displayName =
+    items[0]?.authorFullName || items[0]?.authorName || null;
+
+  return { posts, displayName };
+}
+
+/**
+ * Start an Apify scrape for a LinkedIn profile.
+ * Returns the runId immediately — does NOT wait for completion.
+ * The caller is responsible for polling `checkScrapeStatus(runId)`.
+ */
+export async function startLinkedInScrape(
+  profileUrl: string
+): Promise<string> {
+  const apiKey = getApiKey();
+
   const runResponse = await fetch(
-    `${APIFY_BASE_URL}/acts/${actorId}/runs`,
+    `${APIFY_BASE_URL}/acts/${ACTOR_ID}/runs`,
     {
       method: "POST",
       headers: {
@@ -73,7 +90,6 @@ export async function fetchLinkedInPosts(
 
   if (!runResponse.ok) {
     const error = await runResponse.text();
-    // Provide helpful guidance for common errors
     if (runResponse.status === 404) {
       throw new Error(
         "Apify actor not found. The actor may have been renamed or removed. " +
@@ -89,45 +105,51 @@ export async function fetchLinkedInPosts(
   }
 
   const runData = await runResponse.json();
-  const runId = runData.data.id;
+  return runData.data.id;
+}
 
-  // 2. Poll for completion (max 90s — LinkedIn scraping can take time)
-  let status = runData.data.status;
-  const maxWait = 90_000;
-  const pollInterval = 3000;
-  let elapsed = 0;
+export type ScrapeStatus =
+  | { status: "running"; message: string }
+  | { status: "succeeded"; posts: ScrapedPost[]; displayName: string | null }
+  | { status: "failed"; message: string };
 
-  while (
-    status === "RUNNING" ||
-    status === "READY" ||
-    status === "REBUILDING"
-  ) {
-    if (elapsed >= maxWait) {
-      throw new Error(
-        "Apify scraper timed out after 90 seconds. The actor may be queued. Try again later."
-      );
+/**
+ * Check the status of an Apify run.
+ * If succeeded, fetches and returns the posts.
+ * If still running, returns a status indicator.
+ * If failed, returns an error.
+ */
+export async function checkScrapeStatus(
+  runId: string
+): Promise<ScrapeStatus> {
+  const apiKey = getApiKey();
+
+  const statusRes = await fetch(
+    `${APIFY_BASE_URL}/actor-runs/${runId}`,
+    {
+      headers: { Authorization: `Bearer ${apiKey}` },
     }
-    await new Promise((r) => setTimeout(r, pollInterval));
-    elapsed += pollInterval;
+  );
 
-    const statusRes = await fetch(
-      `${APIFY_BASE_URL}/actor-runs/${runId}`,
-      {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      }
-    );
-    if (!statusRes.ok) continue;
-    const statusData = await statusRes.json();
-    status = statusData.data.status;
+  if (!statusRes.ok) {
+    throw new Error(`Failed to check Apify run status: ${statusRes.status}`);
+  }
+
+  const statusData = await statusRes.json();
+  const status = statusData.data.status;
+
+  if (status === "RUNNING" || status === "READY" || status === "REBUILDING") {
+    return { status: "running", message: `Scrape status: ${status}` };
   }
 
   if (status !== "SUCCEEDED") {
-    throw new Error(
-      `Apify scraper failed with status: ${status}. The profile may be private or LinkedIn blocked the request.`
-    );
+    return {
+      status: "failed",
+      message: `Scraper failed with status: ${status}. The profile may be private or LinkedIn blocked the request.`,
+    };
   }
 
-  // 3. Fetch results from default dataset
+  // Fetch results
   const datasetRes = await fetch(
     `${APIFY_BASE_URL}/actor-runs/${runId}/dataset/items`,
     {
@@ -136,26 +158,55 @@ export async function fetchLinkedInPosts(
   );
 
   if (!datasetRes.ok) {
-    throw new Error(
-      `Failed to fetch Apify dataset: ${datasetRes.status}`
-    );
+    return {
+      status: "failed",
+      message: `Failed to fetch Apify dataset: ${datasetRes.status}`,
+    };
   }
 
   const items: ApifyPost[] = await datasetRes.json();
+  const { posts, displayName } = parsePosts(items);
 
-  const posts: ScrapedPost[] = items
-    .filter((item) => item.text && item.text.trim().length > 10)
-    .map((item) => ({
-      text: item.text!.trim(),
-      postedAt: item.postedAtISO || item.date || null,
-      url: item.url || null,
-      engagement: {
-        likes: item.numLikes ?? item.likes ?? item.likesCount ?? 0,
-        comments: item.numComments ?? item.comments ?? item.commentsCount ?? 0,
-      },
-    }));
+  return { status: "succeeded", posts, displayName };
+}
 
-  const displayName = items[0]?.authorFullName || items[0]?.authorName || null;
+/**
+ * Legacy convenience function: start + wait (up to 90s).
+ * Kept for scripts/one-offs. UI should use start + poll.
+ */
+export async function fetchLinkedInPosts(
+  profileUrl: string
+): Promise<{
+  posts: ScrapedPost[];
+  displayName: string | null;
+}> {
+  const runId = await startLinkedInScrape(profileUrl);
 
-  return { posts, displayName };
+  const maxWait = 90_000;
+  const pollInterval = 3000;
+  let elapsed = 0;
+
+  while (true) {
+    const result = await checkScrapeStatus(runId);
+
+    if (result.status === "succeeded") {
+      return {
+        posts: result.posts,
+        displayName: result.displayName,
+      };
+    }
+
+    if (result.status === "failed") {
+      throw new Error(result.message);
+    }
+
+    if (elapsed >= maxWait) {
+      throw new Error(
+        "Apify scraper timed out after 90 seconds. The actor may still be running. Use the polling UI instead."
+      );
+    }
+
+    await new Promise((r) => setTimeout(r, pollInterval));
+    elapsed += pollInterval;
+  }
 }

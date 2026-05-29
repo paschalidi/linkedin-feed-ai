@@ -1,7 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { fetchLinkedInPosts } from "@/lib/apify";
+import {
+  startLinkedInScrape,
+  checkScrapeStatus,
+} from "@/lib/apify";
 
 export async function getLinkedInProfiles() {
   try {
@@ -37,32 +40,22 @@ export async function addLinkedInProfile(url: string) {
       throw new Error("This profile has already been added.");
     }
 
-    // Scrape via Apify
-    const { posts, displayName } = await fetchLinkedInPosts(normalizedUrl);
+    // Start scrape (fire-and-forget)
+    const runId = await startLinkedInScrape(normalizedUrl);
 
-    if (posts.length === 0) {
-      throw new Error(
-        "No posts found for this profile. The profile may be private or have no public posts."
-      );
-    }
-
-    // Store in DB
+    // Store profile with pending runId
     const profile = await prisma.linkedInProfile.create({
       data: {
         profileUrl: normalizedUrl,
-        displayName: displayName || null,
-        postsJson: JSON.stringify(posts),
-        lastSyncedAt: new Date(),
-        postCount: posts.length,
+        apifyRunId: runId,
+        postCount: 0,
       },
     });
 
     return profile;
   } catch (err: any) {
     console.error("addLinkedInProfile error:", err);
-    throw new Error(
-      err?.message || "Failed to add LinkedIn profile"
-    );
+    throw new Error(err?.message || "Failed to add LinkedIn profile");
   }
 }
 
@@ -75,31 +68,88 @@ export async function resyncLinkedInProfile(id: string) {
       throw new Error("Profile not found");
     }
 
-    const { posts, displayName } = await fetchLinkedInPosts(
-      profile.profileUrl
-    );
+    // Start new scrape
+    const runId = await startLinkedInScrape(profile.profileUrl);
 
-    if (posts.length === 0) {
-      throw new Error(
-        "No posts found during resync. The profile may have become private."
-      );
-    }
-
+    // Update profile with new runId
     const updated = await prisma.linkedInProfile.update({
       where: { id },
       data: {
-        postsJson: JSON.stringify(posts),
-        displayName: displayName || profile.displayName,
-        lastSyncedAt: new Date(),
-        postCount: posts.length,
+        apifyRunId: runId,
       },
     });
 
     return updated;
   } catch (err: any) {
     console.error("resyncLinkedInProfile error:", err);
+    throw new Error(err?.message || "Failed to resync LinkedIn profile");
+  }
+}
+
+export async function checkLinkedInScrapeStatus(id: string) {
+  try {
+    const profile = await prisma.linkedInProfile.findUnique({
+      where: { id },
+    });
+    if (!profile) {
+      throw new Error("Profile not found");
+    }
+
+    if (!profile.apifyRunId) {
+      return { status: "idle" as const };
+    }
+
+    const result = await checkScrapeStatus(profile.apifyRunId);
+
+    if (result.status === "running") {
+      return { status: "running" as const, message: result.message };
+    }
+
+    if (result.status === "failed") {
+      // Clear runId so user can retry
+      await prisma.linkedInProfile.update({
+        where: { id },
+        data: { apifyRunId: null },
+      });
+      return { status: "failed" as const, message: result.message };
+    }
+
+    // Succeeded — update profile with posts
+    const posts = result.posts;
+    const displayName = result.displayName;
+
+    if (posts.length === 0) {
+      await prisma.linkedInProfile.update({
+        where: { id },
+        data: { apifyRunId: null, postCount: 0 },
+      });
+      return {
+        status: "failed" as const,
+        message:
+          "No posts found for this profile. The profile may be private or have no public posts.",
+      };
+    }
+
+    await prisma.linkedInProfile.update({
+      where: { id },
+      data: {
+        displayName: displayName || profile.displayName,
+        postsJson: JSON.stringify(posts),
+        lastSyncedAt: new Date(),
+        postCount: posts.length,
+        apifyRunId: null,
+      },
+    });
+
+    return {
+      status: "succeeded" as const,
+      postCount: posts.length,
+      displayName: displayName || profile.displayName,
+    };
+  } catch (err: any) {
+    console.error("checkLinkedInScrapeStatus error:", err);
     throw new Error(
-      err?.message || "Failed to resync LinkedIn profile"
+      err?.message || "Failed to check LinkedIn scrape status"
     );
   }
 }
@@ -111,9 +161,7 @@ export async function removeLinkedInProfile(id: string) {
     });
   } catch (err: any) {
     console.error("removeLinkedInProfile error:", err);
-    throw new Error(
-      err?.message || "Failed to remove LinkedIn profile"
-    );
+    throw new Error(err?.message || "Failed to remove LinkedIn profile");
   }
 }
 
@@ -160,7 +208,6 @@ export async function generateStyleFingerprint() {
       )
       .join("\n\n---\n\n");
 
-    // Import Claude analysis function dynamically to avoid issues if claude.ts has side effects
     const { analyzeWritingStyle } = await import("@/lib/claude");
     const styleGuide = await analyzeWritingStyle(postsText);
 
