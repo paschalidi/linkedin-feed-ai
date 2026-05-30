@@ -43,7 +43,7 @@ export async function generatePostImage(
   }
 }
 
-function buildImageHtml({ title, content, authorName }: PostImageOptions): string {
+function buildImageHtml({ content, authorName }: PostImageOptions): string {
   // Strip markdown remnants
   const cleanContent = content
     .replace(/\*\*/g, "")
@@ -59,14 +59,13 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
     Fonts are sized for a 1080×1350 canvas.
     On a 375-px-wide mobile screen LinkedIn scales the image to ~35 %,
     so we need big base sizes to stay readable.
+    
+    Without a title taking up space, body text can be larger.
   */
-  const titleLen = title.length;
-  const titleFontSize =
-    titleLen <= 28 ? 72 : titleLen <= 55 ? 60 : titleLen <= 85 ? 50 : 42;
-
   const totalBodyChars = lines.join(" ").length;
   const bodyFontSize =
-    totalBodyChars <= 300 ? 34 : totalBodyChars <= 600 ? 30 : totalBodyChars <= 900 ? 26 : 22;
+    totalBodyChars <= 250 ? 42 : totalBodyChars <= 500 ? 38 : totalBodyChars <= 800 ? 32 : 28;
+  const bodyLineHeight = totalBodyChars <= 500 ? 1.4 : 1.35;
 
   const bodyHtml = lines
     .map((line) => `<p class="post-line">${escapeHtml(line)}</p>`)
@@ -78,7 +77,7 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
 <head>
   <meta charset="utf-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Inter:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -122,7 +121,7 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 90px 80px 90px;
+      padding: 100px 90px 100px;
       text-align: center;
       z-index: 1;
     }
@@ -142,35 +141,25 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
       z-index: 2;
     }
 
-    .title {
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: ${titleFontSize}px;
-      font-weight: 600;
-      color: #ffffff;
-      line-height: 1.12;
-      letter-spacing: -0.02em;
-      max-width: 860px;
-      margin-bottom: 24px;
-      padding-bottom: 18px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-    }
-
     .post-line {
       font-family: 'Inter', sans-serif;
       font-size: ${bodyFontSize}px;
-      font-weight: 400;
-      color: rgba(255, 255, 255, 0.88);
-      line-height: 1.45;
-      margin-bottom: 10px;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.92);
+      line-height: ${bodyLineHeight};
+      margin-bottom: 14px;
       max-width: 860px;
       letter-spacing: 0.01em;
+    }
+
+    .post-line:last-child {
+      margin-bottom: 0;
     }
   </style>
 </head>
 <body>
   <div class="bloom"></div>
   <div class="page">
-    <div class="title">${escapeHtml(title)}</div>
     ${bodyHtml}
   </div>
   <div class="author">@${escapeHtml(authorName || "paschalidi")}</div>
