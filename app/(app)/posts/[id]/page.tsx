@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getPost } from "../actions";
+import { revalidatePath } from "next/cache";
+import { getPost, updatePostStatus } from "../actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { VersionToolbar } from "./version-toolbar";
 import { PostEditor } from "./post-editor";
@@ -140,6 +141,22 @@ export default async function PostDetailPage({
                 {(post.finalContent || post.draftContent).length} characters
               </p>
             </div>
+
+            {post.status === "approved" && (
+              <form
+                action={async () => {
+                  "use server";
+                  await updatePostStatus(id, "posted");
+                  revalidatePath(`/posts/${id}`);
+                  revalidatePath("/posts");
+                }}
+              >
+                <Button type="submit" variant="default" className="w-full">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Mark as Posted
+                </Button>
+              </form>
+            )}
 
             {post.publishedToLinkedInAt && (
               <div>
