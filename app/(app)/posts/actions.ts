@@ -236,7 +236,7 @@ export async function publishToLinkedIn(id: string, content: string) {
     const imageBuffer = await generatePostImage({
       title: post?.idea?.title || "LinkedIn Post",
       content: cleanPostOutput(content),
-      authorName: "cpaschalidi",
+      authorName: "paschalidi",
     });
 
     // Upload the image to Zernio

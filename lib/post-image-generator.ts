@@ -40,16 +40,21 @@ export async function generatePostImage(
 }
 
 function buildImageHtml({ title, content, authorName }: PostImageOptions): string {
-  // Clean up content for display: limit length, strip markdown remnants
+  // Clean up content for display: strip markdown remnants
   const cleanContent = content
     .replace(/\*\*/g, "")
     .replace(/\*/g, "")
-    .replace(/`/g, "")
-    .slice(0, 600); // Limit to fit visually
+    .replace(/`/g, "");
 
-  const lines = cleanContent.split("\n").filter((l) => l.trim().length > 0);
-  const displayLines = lines.slice(0, 5); // Show first 5 non-empty lines
-  const hasMore = lines.length > 5;
+  // Truncate at sentence boundary — never cut mid-sentence
+  const { text: truncatedText, truncated } = truncateAtSentenceBoundary(
+    cleanContent,
+    520
+  );
+
+  const lines = truncatedText.split("\n").filter((l) => l.trim().length > 0);
+  const displayLines = lines.slice(0, 5);
+  const hasMore = truncated || lines.length > 5;
 
   const bodyText = displayLines
     .map((line) => `<p class="post-line">${escapeHtml(line)}</p>`)
@@ -61,7 +66,7 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
 <head>
   <meta charset="utf-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap');
     
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -108,13 +113,13 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
     }
     
     .title {
-      font-family: 'Playfair Display', Georgia, serif;
-      font-size: 32px;
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 34px;
       font-weight: 700;
       color: #ffffff;
       margin-bottom: 36px;
-      line-height: 1.25;
-      letter-spacing: -0.01em;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
     }
     
     .post-line {
@@ -174,12 +179,50 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
     ${hasMore ? '<div class="ellipsis">...</div>' : ""}
   </div>
   <div class="footer">
-    <div class="author">@${escapeHtml(authorName || "cpaschalidi")}</div>
-    <div class="brand">LinkedIn</div>
+    <div class="author">@${escapeHtml(authorName || "paschalidi")}</div>
   </div>
 </body>
 </html>
   `.trim();
+}
+
+/**
+ * Truncate text at the last complete sentence that fits within maxChars.
+ * Never cuts mid-sentence. Falls back to word boundary if no sentence end found.
+ */
+function truncateAtSentenceBoundary(
+  text: string,
+  maxChars: number
+): { text: string; truncated: boolean } {
+  if (text.length <= maxChars) {
+    return { text, truncated: false };
+  }
+
+  const slice = text.slice(0, maxChars);
+
+  // Find the last sentence-ending punctuation in the slice
+  // Look for . ! ? followed by space, newline, or end of string
+  const sentenceRegex = /[.!?](?=\s|$)/g;
+  let lastBoundary = -1;
+  let match;
+
+  while ((match = sentenceRegex.exec(slice)) !== null) {
+    lastBoundary = match.index;
+  }
+
+  // If we found a sentence boundary and it's not too early, cut there
+  if (lastBoundary > maxChars * 0.4) {
+    return { text: text.slice(0, lastBoundary + 1), truncated: true };
+  }
+
+  // Fallback: find last word boundary (space) that's not too early
+  const lastSpace = slice.lastIndexOf(" ");
+  if (lastSpace > maxChars * 0.4) {
+    return { text: text.slice(0, lastSpace), truncated: true };
+  }
+
+  // Last resort: hard cut at maxChars
+  return { text: slice, truncated: true };
 }
 
 function escapeHtml(text: string): string {
