@@ -253,6 +253,7 @@ export default function LinkedInProfileList({
         setSuccess(
           "Style fingerprint generated! 'Cloned Voice' is now your active style."
         );
+        router.refresh();
       } catch (err: any) {
         setError(err?.message || "Failed to generate fingerprint");
       }
@@ -446,7 +447,7 @@ export default function LinkedInProfileList({
               : `Generate Style Fingerprint (${totalPosts} posts)`}
           </Button>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Claude will analyze {totalPosts} posts across {profiles.length}{" "}
+            Gemini will analyze {totalPosts} posts across {profiles.length}{" "}
             profiles and create a &quot;Cloned Voice&quot; style profile.
           </p>
         </div>
