@@ -5,6 +5,7 @@ import { generateLinkedInPost } from "@/lib/gemini";
 import { retrieveRelevantArticles } from "../compose/actions";
 import { createLinkedInPost } from "@/lib/zernio";
 import { getRandomSamplePosts } from "@/lib/linkedin-style";
+import { cleanPostOutput } from "@/lib/prompts";
 
 interface Version {
   content: string;
@@ -143,7 +144,7 @@ export async function regeneratePost(id: string) {
       examples,
     });
 
-    const draftWithSources = draft.trim();
+    const draftWithSources = cleanPostOutput(draft.trim());
 
     // Save current content to versions before overwriting
     const versions = getVersions(post);
@@ -184,17 +185,19 @@ export async function savePostContent(id: string, content: string) {
     const post = await prisma.generatedPost.findUnique({ where: { id } });
     if (!post) throw new Error("Post not found");
 
+    const cleaned = cleanPostOutput(content);
+
     const versions = getVersions(post);
     const currentIdx = post.currentVersionIndex ?? 0;
 
     if (versions[currentIdx]) {
-      versions[currentIdx].content = content;
+      versions[currentIdx].content = cleaned;
     }
 
     return await prisma.generatedPost.update({
       where: { id },
       data: {
-        finalContent: content,
+        finalContent: cleaned,
         versions: JSON.stringify(versions),
       },
     });

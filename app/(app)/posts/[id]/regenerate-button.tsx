@@ -12,7 +12,8 @@ export function RegenerateButton({ postId }: { postId: string }) {
     setIsLoading(true);
     try {
       await regenerateAndRefresh(postId);
-    } finally {
+      window.location.reload();
+    } catch {
       setIsLoading(false);
     }
   }

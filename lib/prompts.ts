@@ -54,8 +54,9 @@ HARD RULES — VIOLATING ANY OF THESE RUINS THE POST
    Absorb the facts. Speak them as YOUR observations from doing the work.
 
 2. PLAIN TEXT ONLY. LinkedIn renders no markdown.
-   FORBIDDEN: *italics*, **bold**, \`code\`, # headings, > blockquotes, [link](url), - bullet markers, --- rules.
-   Emphasis comes from word choice and rhythm, never from formatting characters.
+    FORBIDDEN: *italics*, **bold**, \`code\`, # headings, > blockquotes, [link](url), - bullet markers, --- rules.
+    Emphasis comes from word choice and rhythm, never from formatting characters.
+    If you output ANY markdown character, you have FAILED. No asterisks. No backticks. No hash symbols. No brackets. No bullet dashes. Nothing. Plain text only.
 
 3. NO CROSS-DOMAIN METAPHORS. Zero tolerance.
    FORBIDDEN: chef/knife, brain/nervous system, F1 car/chassis, painter/canvas, surgeon/scalpel, "it's like giving X a broken Y", "think of it as...", "imagine if...".
@@ -197,6 +198,46 @@ POSTS:
 ${postsText}`;
 }
 
+/**
+ * Aggressively strip markdown and formatting characters from post output.
+ * LinkedIn renders no markdown, so these are always bugs.
+ */
+export function cleanPostOutput(text: string): string {
+  return (
+    text
+      // Remove bold/italic markers
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      // Remove backtick code markers
+      .replace(/`/g, "")
+      // Remove heading markers
+      .replace(/^#{1,6}\s+/gm, "")
+      // Remove blockquote markers
+      .replace(/^>\s?/gm, "")
+      // Remove bullet markers (but keep the text)
+      .replace(/^[-*+]\s+/gm, "")
+      // Remove numbered list markers like "1. " at line start
+      .replace(/^\d+\.\s+/gm, "")
+      // Remove horizontal rules
+      .replace(/^---+$/gm, "")
+      // Remove link syntax — keep just the URL or text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      // Remove bare URLs in markdown
+      .replace(/<([^>]+)>/g, "$1")
+      // Remove stray brackets
+      .replace(/\[|\]/g, "")
+      // Clean up double spaces
+      .replace(/  +/g, " ")
+      // Trim lines
+      .split("\n")
+      .map((line) => line.trim())
+      .join("\n")
+      // Collapse more than 2 consecutive newlines
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
+}
+
 export function buildUserPrompt(options: PostGenerationOptions): string {
   const articleContext = buildArticleContext(options.articles);
 
@@ -208,9 +249,9 @@ ${articleContext}
 
 Write a tight 120–180 word LinkedIn post about this idea, in the voice of someone who has actually shipped this work.
 
-Final checks before you output — if any of these fail, rewrite:
+Final checks before you output — if ANY of these fail, rewrite the entire post:
 1. Does it cite "Article 1", "the piece", "according to..."? If yes, rewrite as your own observation.
-2. Does it contain any markdown (*, **, \`, #, -, [, ])? If yes, strip it.
+2. Does it contain ANY markdown characters? Scan for: *, **, \`, #, >, [, ], ---, - bullet. If ANY found, delete them and rewrite the sentence without formatting.
 3. Does it contain a cross-domain metaphor (chef/knife, brain/nervous system, F1 car, painter/canvas, "it's like giving a X a Y")? If yes, delete that sentence and say the thing directly.
 4. Does it sound like a practitioner who has scars from this work, or like someone explaining a topic they read about? If the second, rewrite.
 5. Is it 120–180 words in 3–5 short paragraphs? If longer or stacked one-liners, restructure.`;

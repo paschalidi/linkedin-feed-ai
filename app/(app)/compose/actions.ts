@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { generateEmbedding, generateLinkedInPost } from "@/lib/gemini";
 import { getRandomSamplePosts } from "@/lib/linkedin-style";
+import { cleanPostOutput } from "@/lib/prompts";
 
 export async function getIdeasForCompose() {
   try {
@@ -204,7 +205,7 @@ export async function generatePost(formData: FormData) {
     examples,
   });
 
-  const draftWithSources = draft.trim();
+  const draftWithSources = cleanPostOutput(draft.trim());
 
   const post = await prisma.generatedPost.create({
     data: {
