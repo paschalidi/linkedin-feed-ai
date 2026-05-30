@@ -81,19 +81,27 @@ export async function surpriseMe() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
-    // Fetch recent articles
-    const articles = await prisma.article.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 30,
+    // Fetch a pool of articles and shuffle randomly so each click gets a fresh mix
+    const allArticles = await prisma.article.findMany({
       select: { title: true, excerpt: true, content: true, author: true, url: true },
     });
 
-    if (articles.length === 0) {
+    if (allArticles.length === 0) {
       throw new Error("No articles found. Add some sources first.");
     }
 
+    // Fisher-Yates shuffle for unbiased randomness
+    const shuffled = [...allArticles];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Sample up to 30 random articles
+    const sample = shuffled.slice(0, 30);
+
     // Build article digest — title + short excerpt
-    const articleDigest = articles
+    const articleDigest = sample
       .map((a, i) => {
         const snippet = (a.excerpt || a.content).slice(0, 300);
         return `Article ${i + 1}: ${a.title}${a.author ? ` by ${a.author}` : ""}\n${snippet}`;
