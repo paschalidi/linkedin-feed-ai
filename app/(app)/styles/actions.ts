@@ -4,6 +4,24 @@ import { prisma } from "@/lib/prisma";
 
 export async function getStyleProfiles() {
   try {
+    // Self-heal: if multiple profiles are active, keep only the newest
+    const activeProfiles = await prisma.styleProfile.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (activeProfiles.length > 1) {
+      const keepId = activeProfiles[0].id;
+      const deactivateIds = activeProfiles.slice(1).map((p) => p.id);
+      await prisma.styleProfile.updateMany({
+        where: { id: { in: deactivateIds } },
+        data: { isActive: false },
+      });
+      console.log(
+        `Cleaned up ${deactivateIds.length} extra active profiles. Kept ${keepId}.`
+      );
+    }
+
     return await prisma.styleProfile.findMany({
       orderBy: { createdAt: "desc" },
     });
@@ -18,6 +36,13 @@ export async function addStyleProfile(formData: FormData) {
     const name = formData.get("name") as string;
     const promptText = formData.get("prompt_text") as string;
     const isActive = formData.get("is_active") === "on";
+
+    if (isActive) {
+      // Deactivate all others to enforce single active
+      await prisma.styleProfile.updateMany({
+        data: { isActive: false },
+      });
+    }
 
     return await prisma.styleProfile.create({
       data: {

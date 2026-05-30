@@ -277,6 +277,10 @@ export async function generateStyleFingerprint() {
     });
 
     if (existing) {
+      // Deactivate all others first to enforce single active
+      await prisma.styleProfile.updateMany({
+        data: { isActive: false },
+      });
       await prisma.styleProfile.update({
         where: { id: existing.id },
         data: {
