@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Download, ImageIcon, AlertCircle } from "lucide-react";
+import { RefreshCw, Download, ImageIcon, AlertCircle, Smartphone } from "lucide-react";
 
 interface PostImagePreviewProps {
   postId: string;
@@ -32,7 +32,7 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
   }, []);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-base font-medium flex items-center gap-2">
           <ImageIcon className="h-4 w-4" />
@@ -59,21 +59,31 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
         </div>
       )}
 
-      <div className="rounded-lg border overflow-hidden relative min-h-[200px] bg-muted/30">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
-            <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+      {/* Mobile preview frame */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+          <Smartphone className="h-3 w-3" />
+          Mobile preview — 4:5 portrait fills the phone screen
+        </div>
+
+        <div className="rounded-[2rem] border-4 border-muted bg-background p-2 shadow-sm max-w-[280px]">
+          <div className="rounded-[1.5rem] overflow-hidden relative bg-muted/30 aspect-[4/5]">
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
+                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={imageUrl}
+              src={imageUrl}
+              alt="Branded post preview"
+              className="w-full h-full object-cover"
+              onLoad={handleLoad}
+              onError={handleError}
+            />
           </div>
-        )}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={imageUrl}
-          src={imageUrl}
-          alt="Branded post preview"
-          className="w-full h-auto"
-          onLoad={handleLoad}
-          onError={handleError}
-        />
+        </div>
       </div>
 
       <a
@@ -85,8 +95,10 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
           Download PNG
         </Button>
       </a>
-      <p className="text-xs text-muted-foreground">
-        1080 x 1350 px — mobile-optimised for LinkedIn
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        <strong>1080 x 1350 px</strong> — 4:5 portrait ratio. 
+        On mobile LinkedIn feeds this fills the screen edge-to-edge without cropping. 
+        Landscape images get cut off on phones; portrait images get the full frame.
       </p>
     </div>
   );
