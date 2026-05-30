@@ -200,6 +200,18 @@ export async function updatePostStatus(id: string, status: string) {
   }
 }
 
+export async function archivePost(id: string) {
+  try {
+    return await prisma.generatedPost.update({
+      where: { id },
+      data: { status: "archived" },
+    });
+  } catch (err: any) {
+    console.error("archivePost error:", err);
+    throw new Error(err?.message || "Failed to archive post");
+  }
+}
+
 export async function publishToLinkedIn(id: string, content: string) {
   try {
     if (!content || content.trim().length === 0) {
