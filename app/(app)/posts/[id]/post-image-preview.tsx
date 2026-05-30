@@ -59,13 +59,18 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
         </div>
       )}
 
-      <div className="rounded-lg border overflow-hidden">
+      <div className="rounded-lg border overflow-hidden relative min-h-[200px] bg-muted/30">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
+            <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          key={imageUrl}
           src={imageUrl}
           alt="Branded post preview"
           className="w-full h-auto"
-          loading="lazy"
           onLoad={handleLoad}
           onError={handleError}
         />
