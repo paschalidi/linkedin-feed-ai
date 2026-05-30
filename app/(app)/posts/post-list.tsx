@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Archive, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { FileText, ArrowRight, Archive, Loader2, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
 
 interface Post {
   id: string;
@@ -19,11 +19,14 @@ interface Post {
 interface PostListProps {
   posts: Post[];
   onArchive: (id: string) => Promise<void>;
+  onPublish?: (id: string, content: string) => Promise<{ success: boolean; postUrl?: string; error?: string }>;
 }
 
-export default function PostList({ posts, onArchive }: PostListProps) {
+export default function PostList({ posts, onArchive, onPublish }: PostListProps) {
   const router = useRouter();
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -31,6 +34,7 @@ export default function PostList({ posts, onArchive }: PostListProps) {
   const handleArchive = (id: string) => {
     setError(null);
     setSuccess(null);
+    setPublishedUrl(null);
     setArchivingId(id);
     startTransition(async () => {
       try {
@@ -41,6 +45,31 @@ export default function PostList({ posts, onArchive }: PostListProps) {
         setError(err?.message || "Failed to archive post");
       } finally {
         setArchivingId(null);
+      }
+    });
+  };
+
+  const handlePublish = (post: Post) => {
+    if (!onPublish) return;
+    setError(null);
+    setSuccess(null);
+    setPublishedUrl(null);
+    setPublishingId(post.id);
+    const content = post.finalContent || post.draftContent;
+    startTransition(async () => {
+      try {
+        const result = await onPublish(post.id, content);
+        if (result.success) {
+          setSuccess("Published to LinkedIn!");
+          if (result.postUrl) setPublishedUrl(result.postUrl);
+          router.refresh();
+        } else {
+          setError(result.error || "Failed to publish");
+        }
+      } catch (err: any) {
+        setError(err?.message || "Failed to publish");
+      } finally {
+        setPublishingId(null);
       }
     });
   };
@@ -74,7 +103,17 @@ export default function PostList({ posts, onArchive }: PostListProps) {
       {success && (
         <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-3 rounded-md">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          {success}
+          <span>{success}</span>
+          {publishedUrl && (
+            <a
+              href={publishedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-medium"
+            >
+              View on LinkedIn
+            </a>
+          )}
         </div>
       )}
       {posts.map((post) => (
@@ -110,6 +149,21 @@ export default function PostList({ posts, onArchive }: PostListProps) {
             </p>
           </Link>
           <div className="flex items-center gap-2 shrink-0">
+            {onPublish && post.status !== "posted" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePublish(post)}
+                disabled={publishingId === post.id || isPending}
+              >
+                {publishingId === post.id ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                )}
+                Publish
+              </Button>
+            )}
             <Link href={`/posts/${post.id}`}>
               <ArrowRight className="h-5 w-5 text-muted-foreground" />
             </Link>

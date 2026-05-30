@@ -22,7 +22,7 @@ export async function generatePostImage(
 
   try {
     const page = await browser.newPage({
-      viewport: { width: 1080, height: 1350 },
+      viewport: { width: 960, height: 1200 },
       deviceScaleFactor: 2,
     });
 
@@ -65,7 +65,7 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
 
   const bodyHtml = displayLines
     .map((line) => `<p class="post-line">${escapeHtml(line)}</p>`)
-    .join("") + (hasMore ? '<p class="ellipsis">...</p>' : "");
+    .join("");
 
   return `
 <!DOCTYPE html>
@@ -78,8 +78,8 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      width: 1080px;
-      height: 1350px;
+      width: 960px;
+      height: 1200px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #0d2418;
       color: #ffffff;
@@ -97,8 +97,8 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
       left: 50%;
       bottom: -600px;
       transform: translateX(-50%);
-      width: 1600px;
-      height: 900px;
+      width: 1400px;
+      height: 800px;
       background: radial-gradient(ellipse at center,
         rgba(248, 218, 188, 0.98) 0%,
         rgba(246, 206, 172, 0.80) 18%,
@@ -117,19 +117,19 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 100px 90px 100px;
+      padding: 80px 70px 80px;
       text-align: center;
       z-index: 1;
     }
 
     .author {
       position: absolute;
-      bottom: 28px;
+      bottom: 22px;
       left: 0;
       right: 0;
       text-align: center;
       font-family: 'Inter', sans-serif;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 500;
       color: #0d2418;
       letter-spacing: 0.2em;
@@ -139,12 +139,12 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
 
     .post-line {
       font-family: 'Inter', sans-serif;
-      font-size: 46px;
+      font-size: 40px;
       font-weight: 400;
       color: rgba(255, 255, 255, 0.92);
       line-height: 1.35;
-      margin-bottom: 18px;
-      max-width: 860px;
+      margin-bottom: 16px;
+      max-width: 760px;
       letter-spacing: 0.01em;
     }
 

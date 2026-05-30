@@ -119,18 +119,16 @@ export function PostEditor({
           {approved ? "Approved!" : "Approve"}
         </Button>
 
-        {!isPublished && !publishResult?.success && (
-          <Button
-            type="button"
-            variant="outline"
-            className="text-base border-blue-600 text-blue-600 hover:bg-blue-50"
-            onClick={handlePublish}
-            disabled={isPublishing}
-          >
-            <ExternalLink className="h-5 w-5 mr-2" />
-            {isPublishing ? "Publishing..." : "Post to LinkedIn"}
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          className="text-base border-blue-600 text-blue-600 hover:bg-blue-50"
+          onClick={handlePublish}
+          disabled={isPublishing}
+        >
+          <ExternalLink className="h-5 w-5 mr-2" />
+          {isPublishing ? "Publishing..." : isPublished ? "Re-publish to LinkedIn" : "Post to LinkedIn"}
+        </Button>
 
         {publishResult?.success && (
           <span className="text-sm text-green-600 font-medium">
