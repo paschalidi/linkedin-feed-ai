@@ -144,7 +144,7 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
     .post-line {
       font-family: 'Inter', sans-serif;
       font-size: ${bodyFontSize}px;
-      font-weight: 300;
+      font-weight: 400;
       color: rgba(255, 255, 255, 0.92);
       line-height: ${bodyLineHeight};
       margin-bottom: 14px;
