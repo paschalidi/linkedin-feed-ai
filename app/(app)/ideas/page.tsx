@@ -6,6 +6,7 @@ import {
   getIdeas,
   reuseIdea,
   generatePostFromIdea,
+  surpriseMe,
 } from "./actions";
 import { getStyleProfiles } from "../styles/actions";
 import { Button } from "@/components/ui/button";
@@ -119,6 +120,14 @@ export default async function IdeasPage() {
                   );
                   if (result.success && result.postId) {
                     revalidatePath("/posts");
+                  }
+                  return result;
+                }}
+                onSurpriseMe={async () => {
+                  "use server";
+                  const result = await surpriseMe();
+                  if (result.success) {
+                    revalidatePath("/ideas");
                   }
                   return result;
                 }}

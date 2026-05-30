@@ -12,6 +12,7 @@ import {
   Wand2,
   AlertCircle,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 
 interface Idea {
@@ -36,6 +37,7 @@ interface IdeaListProps {
   onArchive: (id: string) => Promise<void>;
   onReuse: (id: string) => Promise<void>;
   onGenerate: (ideaId: string, styleProfileId: string) => Promise<{ success: boolean; postId?: string; error?: string }>;
+  onSurpriseMe?: () => Promise<{ success: boolean; error?: string }>;
 }
 
 export default function IdeaList({
@@ -46,12 +48,14 @@ export default function IdeaList({
   onArchive,
   onReuse,
   onGenerate,
+  onSurpriseMe,
 }: IdeaListProps) {
   const router = useRouter();
   const [selectedStyleId, setSelectedStyleId] = useState(
     styles.find((s) => s.isActive)?.id || styles[0]?.id || ""
   );
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [surprising, setSurprising] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -77,9 +81,26 @@ export default function IdeaList({
 
   const activeStyleName = styles.find((s) => s.id === selectedStyleId)?.name || "None";
 
+  const handleSurpriseMe = () => {
+    if (!onSurpriseMe) return;
+    setError(null);
+    setSuccess(null);
+    setSurprising(true);
+    startTransition(async () => {
+      const result = await onSurpriseMe();
+      setSurprising(false);
+      if (result.success) {
+        setSuccess("New idea generated!");
+        router.refresh();
+      } else {
+        setError(result.error || "Failed to generate idea");
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Style Selector + Messages */}
+      {/* Style Selector + Surprise Me + Messages */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium shrink-0">Voice:</label>
@@ -97,6 +118,21 @@ export default function IdeaList({
               </option>
             ))}
           </select>
+          {onSurpriseMe && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSurpriseMe}
+              disabled={surprising || isPending}
+            >
+              {surprising ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-1" />
+              )}
+              Surprise Me
+            </Button>
+          )}
         </div>
         
         {error && (
