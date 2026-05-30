@@ -60,3 +60,17 @@ export async function reuseIdea(id: string) {
     throw new Error(err?.message || "Failed to reuse idea");
   }
 }
+
+export async function generatePostFromIdea(ideaId: string, styleProfileId: string) {
+  try {
+    const { generatePost } = await import("@/app/(app)/compose/actions");
+    const formData = new FormData();
+    formData.append("idea_ids", ideaId);
+    formData.append("style_profile_id", styleProfileId);
+    const post = await generatePost(formData);
+    return { success: true as const, postId: post.id };
+  } catch (err: any) {
+    console.error("generatePostFromIdea error:", err);
+    return { success: false as const, error: err?.message || "Failed to generate post" };
+  }
+}

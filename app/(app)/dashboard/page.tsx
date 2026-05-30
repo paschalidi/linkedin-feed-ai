@@ -76,7 +76,7 @@ export default async function DashboardPage() {
             <p className="text-sm text-muted-foreground mt-1">
               Approved posts
             </p>
-            <Link href="/compose">
+            <Link href="/ideas">
               <Button className="mt-4 w-full" variant="outline" size="default">
                 <Sparkles className="h-5 w-5 mr-2" />
                 Generate
@@ -101,7 +101,7 @@ export default async function DashboardPage() {
                 {ideas.map((idea) => (
                   <Link
                     key={idea.id}
-                    href={`/compose?idea=${idea.id}`}
+                    href={`/ideas`}
                     className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted transition-colors"
                   >
                     <div>
