@@ -24,6 +24,7 @@ export async function GET(
     const imageBuffer = await generatePostImage({
       title,
       content,
+      authorName: "cpaschalidi",
     });
 
     return new Response(new Uint8Array(imageBuffer), {

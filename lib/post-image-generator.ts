@@ -7,7 +7,7 @@ export interface PostImageOptions {
 }
 
 /**
- * Generate a branded image with the post text rendered on it.
+ * Generate a branded black & white image with the post text rendered on it.
  * Uses Playwright to screenshot a styled HTML page.
  * Output: 1200x627 PNG (LinkedIn optimal image size).
  */
@@ -26,7 +26,7 @@ export async function generatePostImage(
     await page.setContent(html, { waitUntil: "networkidle" });
 
     // Wait for fonts to load
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(800);
 
     const screenshot = await page.screenshot({
       type: "png",
@@ -45,11 +45,11 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
     .replace(/\*\*/g, "")
     .replace(/\*/g, "")
     .replace(/`/g, "")
-    .slice(0, 700); // Limit to fit visually
+    .slice(0, 600); // Limit to fit visually
 
   const lines = cleanContent.split("\n").filter((l) => l.trim().length > 0);
-  const displayLines = lines.slice(0, 6); // Show first 6 non-empty lines
-  const hasMore = lines.length > 6;
+  const displayLines = lines.slice(0, 5); // Show first 5 non-empty lines
+  const hasMore = lines.length > 5;
 
   const bodyText = displayLines
     .map((line) => `<p class="post-line">${escapeHtml(line)}</p>`)
@@ -61,7 +61,7 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
 <head>
   <meta charset="utf-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
     
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -69,35 +69,34 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
       width: 1200px;
       height: 627px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-      color: #f8fafc;
+      background: #000000;
+      color: #ffffff;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 60px 80px;
+      padding: 70px 90px;
       position: relative;
       overflow: hidden;
     }
     
-    /* Subtle accent top line */
+    /* White top border */
     .accent-bar {
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
-      height: 6px;
-      background: linear-gradient(90deg, #f59e0b, #d97706, #f59e0b);
+      height: 4px;
+      background: #ffffff;
     }
     
-    /* Subtle background pattern */
+    /* Subtle grain texture overlay */
     body::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: 
-        radial-gradient(circle at 20% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
       pointer-events: none;
     }
     
@@ -105,57 +104,64 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
       position: relative;
       z-index: 1;
       width: 100%;
-      max-width: 960px;
+      max-width: 920px;
     }
     
     .title {
-      font-size: 28px;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 32px;
       font-weight: 700;
-      color: #fbbf24;
-      margin-bottom: 32px;
-      line-height: 1.3;
-      letter-spacing: -0.02em;
-    }
-    
-    .post-line {
-      font-size: 26px;
-      font-weight: 400;
-      line-height: 1.5;
-      margin-bottom: 8px;
-      color: #e2e8f0;
+      color: #ffffff;
+      margin-bottom: 36px;
+      line-height: 1.25;
       letter-spacing: -0.01em;
     }
     
+    .post-line {
+      font-family: 'Inter', sans-serif;
+      font-size: 24px;
+      font-weight: 300;
+      line-height: 1.55;
+      margin-bottom: 10px;
+      color: #e5e5e5;
+      letter-spacing: 0.01em;
+    }
+    
     .ellipsis {
-      font-size: 26px;
-      color: #94a3b8;
-      margin-top: 8px;
+      font-size: 24px;
+      color: #666666;
+      margin-top: 12px;
+      font-weight: 300;
     }
     
     .footer {
       position: absolute;
-      bottom: 32px;
-      left: 80px;
-      right: 80px;
+      bottom: 36px;
+      left: 90px;
+      right: 90px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       z-index: 1;
+      border-top: 1px solid #333333;
+      padding-top: 20px;
     }
     
     .author {
-      font-size: 16px;
-      font-weight: 600;
-      color: #94a3b8;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      color: #ffffff;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
     }
     
     .brand {
-      font-size: 14px;
-      font-weight: 600;
-      color: #64748b;
-      letter-spacing: 0.1em;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      color: #666666;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
     }
   </style>
@@ -168,8 +174,8 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
     ${hasMore ? '<div class="ellipsis">...</div>' : ""}
   </div>
   <div class="footer">
-    <div class="author">${escapeHtml(authorName || "")}</div>
-    <div class="brand">LinkedIn Feed AI</div>
+    <div class="author">@${escapeHtml(authorName || "cpaschalidi")}</div>
+    <div class="brand">LinkedIn</div>
   </div>
 </body>
 </html>

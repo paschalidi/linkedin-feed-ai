@@ -3,7 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { generateLinkedInPost } from "@/lib/gemini";
 import { retrieveRelevantArticles } from "../compose/actions";
-import { createLinkedInPost } from "@/lib/zernio";
+import { createLinkedInPost, uploadMediaToZernio } from "@/lib/zernio";
+import { generatePostImage } from "@/lib/post-image-generator";
 import { getRandomSamplePosts } from "@/lib/linkedin-style";
 import { cleanPostOutput } from "@/lib/prompts";
 
@@ -225,7 +226,24 @@ export async function publishToLinkedIn(id: string, content: string) {
       );
     }
 
-    const result = await createLinkedInPost(content, accountId);
+    // Fetch the post idea to get the title for the branded image
+    const post = await prisma.generatedPost.findUnique({
+      where: { id },
+      include: { idea: true },
+    });
+
+    // Generate the branded image
+    const imageBuffer = await generatePostImage({
+      title: post?.idea?.title || "LinkedIn Post",
+      content: cleanPostOutput(content),
+      authorName: "cpaschalidi",
+    });
+
+    // Upload the image to Zernio
+    const mediaUrl = await uploadMediaToZernio(imageBuffer);
+
+    // Publish to LinkedIn with the image
+    const result = await createLinkedInPost(content, accountId, mediaUrl);
 
     // Mark as posted and record the LinkedIn post ID
     await prisma.generatedPost.update({

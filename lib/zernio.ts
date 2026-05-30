@@ -7,6 +7,11 @@ const ZERNIO_BASE_URL = "https://zernio.com/api/v1";
 
 interface ZernioPostPayload {
   content: string;
+  mediaItems?: Array<{
+    type: "image" | "video";
+    url: string;
+    title?: string;
+  }>;
   platforms: Array<{
     platform: "linkedin";
     accountId: string;
@@ -31,9 +36,66 @@ interface ZernioPostResponse {
   };
 }
 
+interface ZernioPresignResponse {
+  uploadUrl: string;
+  publicUrl: string;
+  key: string;
+  type: string;
+}
+
+export async function uploadMediaToZernio(
+  imageBuffer: Buffer
+): Promise<string> {
+  const apiKey = process.env.ZERNIO_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "ZERNIO_API_KEY is not configured. Add it to your .env.local file."
+    );
+  }
+
+  // Step 1: Get presigned upload URL
+  const presignRes = await fetch(`${ZERNIO_BASE_URL}/media/presign`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      filename: "linkedin-post-image.png",
+      contentType: "image/png",
+      size: imageBuffer.length,
+    }),
+  });
+
+  if (!presignRes.ok) {
+    const text = await presignRes.text();
+    throw new Error(`Zernio presign failed (${presignRes.status}): ${text}`);
+  }
+
+  const presignData: ZernioPresignResponse = await presignRes.json();
+
+  // Step 2: Upload the image directly to the presigned URL
+  const uploadRes = await fetch(presignData.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "image/png",
+    },
+    body: new Uint8Array(imageBuffer),
+  });
+
+  if (!uploadRes.ok) {
+    const text = await uploadRes.text();
+    throw new Error(`Zernio upload failed (${uploadRes.status}): ${text}`);
+  }
+
+  // Step 3: Return the public URL to use in the post
+  return presignData.publicUrl;
+}
+
 export async function createLinkedInPost(
   content: string,
-  accountId: string
+  accountId: string,
+  mediaUrl?: string
 ): Promise<{ postId: string; postUrl?: string }> {
   const apiKey = process.env.ZERNIO_API_KEY;
   if (!apiKey) {
@@ -58,6 +120,15 @@ export async function createLinkedInPost(
     ],
     publishNow: true,
   };
+
+  if (mediaUrl) {
+    payload.mediaItems = [
+      {
+        type: "image",
+        url: mediaUrl,
+      },
+    ];
+  }
 
   const res = await fetch(`${ZERNIO_BASE_URL}/posts`, {
     method: "POST",
