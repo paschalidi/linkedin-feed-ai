@@ -56,20 +56,16 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
     .filter((l) => l.length > 0);
 
   /*
-    Fonts are sized for a 1080×1350 canvas.
-    On a 375-px-wide mobile screen LinkedIn scales the image to ~35 %,
-    so we need big base sizes to stay readable.
-    
-    Without a title taking up space, body text can be larger.
+    Show only the first 2 paragraphs on the image — the hook + the punch.
+    This keeps the image punchy and readable on mobile.
+    The full post stays at 120–180 words; the image is just a teaser.
   */
-  const totalBodyChars = lines.join(" ").length;
-  const bodyFontSize =
-    totalBodyChars <= 250 ? 42 : totalBodyChars <= 500 ? 38 : totalBodyChars <= 800 ? 32 : 28;
-  const bodyLineHeight = totalBodyChars <= 500 ? 1.4 : 1.35;
+  const displayLines = lines.slice(0, 2);
+  const hasMore = lines.length > 2;
 
-  const bodyHtml = lines
+  const bodyHtml = displayLines
     .map((line) => `<p class="post-line">${escapeHtml(line)}</p>`)
-    .join("");
+    .join("") + (hasMore ? '<p class="ellipsis">...</p>' : "");
 
   return `
 <!DOCTYPE html>
@@ -143,17 +139,27 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
 
     .post-line {
       font-family: 'Inter', sans-serif;
-      font-size: ${bodyFontSize}px;
+      font-size: 46px;
       font-weight: 400;
       color: rgba(255, 255, 255, 0.92);
-      line-height: ${bodyLineHeight};
-      margin-bottom: 14px;
+      line-height: 1.35;
+      margin-bottom: 18px;
       max-width: 860px;
       letter-spacing: 0.01em;
     }
 
     .post-line:last-child {
       margin-bottom: 0;
+    }
+
+    .ellipsis {
+      font-family: 'Inter', sans-serif;
+      font-size: 46px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.35;
+      margin-top: 12px;
+      max-width: 860px;
     }
   </style>
 </head>
