@@ -146,32 +146,13 @@ export async function regeneratePost(id: string) {
 
     const draftWithSources = cleanPostOutput(draft.trim());
 
-    // Save current content to versions before overwriting
-    const versions = getVersions(post);
-    const currentIdx = post.currentVersionIndex ?? 0;
-
-    // If the current version already exists at this index, update it first
-    // so we don't lose edits the user made to this version
-    if (versions[currentIdx]) {
-      versions[currentIdx].content = post.finalContent || post.draftContent;
-    }
-
-    // Append the new generation as a new version
-    versions.push({
-      content: draftWithSources,
-      createdAt: new Date().toISOString(),
-    });
-
-    const newIdx = versions.length - 1;
-
-    // Update the post with the new version
-    return await prisma.generatedPost.update({
-      where: { id },
+    // Create a brand new post row tied to the same idea
+    return await prisma.generatedPost.create({
       data: {
+        ideaId: idea.id,
         draftContent: draftWithSources,
         finalContent: draftWithSources,
-        versions: JSON.stringify(versions),
-        currentVersionIndex: newIdx,
+        status: "draft",
       },
     });
   } catch (err: any) {
