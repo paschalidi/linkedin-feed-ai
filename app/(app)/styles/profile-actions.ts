@@ -268,7 +268,7 @@ export async function generateStyleFingerprint() {
       )
       .join("\n\n---\n\n");
 
-    const { analyzeWritingStyle } = await import("@/lib/claude");
+    const { analyzeWritingStyle } = await import("@/lib/gemini");
     const styleGuide = await analyzeWritingStyle(postsText);
 
     // Upsert the "Cloned Voice" style profile

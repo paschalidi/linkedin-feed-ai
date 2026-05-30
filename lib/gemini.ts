@@ -129,6 +129,45 @@ async function generateWithModel(
   return result.response.text() ?? "";
 }
 
+export async function analyzeWritingStyle(postsText: string): Promise<string> {
+  return tryWithRetry(async () => {
+    const genAI = new GoogleGenerativeAI(getApiKey());
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const prompt = `You are analyzing a corpus of LinkedIn posts to extract a writing style guide.
+
+Below are sample posts. Identify the patterns:
+
+1. Average post length (words / paragraphs)
+2. Sentence structure (short punchy / flowing / mixed)
+3. Common opening hooks
+4. Whitespace and formatting conventions
+5. Tone (confident / vulnerable / contrarian / educational / ...)
+6. Vocabulary register (formal / casual / technical / mixed)
+7. How they use data, numbers, specifics
+8. How they tell stories or share personal anecdotes
+9. Closing patterns (call-to-action / declarative summary / question)
+10. What they DON'T do (clichés they avoid)
+
+Output a writing style guide a junior writer could follow to imitate this voice.
+Be specific. Use examples from the posts.
+Output as markdown.
+
+POSTS:
+${postsText}`;
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+      },
+    });
+
+    return result.response.text() ?? "";
+  });
+}
+
 export async function generateLinkedInPost(options: {
   idea: string;
   ideaDescription?: string;
