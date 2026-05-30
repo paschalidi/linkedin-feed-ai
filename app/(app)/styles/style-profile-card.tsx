@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,11 @@ export default function StyleProfileCard({
   const [editName, setEditName] = useState(profile.name);
   const [editPrompt, setEditPrompt] = useState(profile.promptText);
   const [isSaving, setIsSaving] = useState(false);
+
+  const textRows = useMemo(
+    () => Math.max(10, editPrompt.split("\n").length + 2),
+    [editPrompt]
+  );
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -64,8 +69,8 @@ export default function StyleProfileCard({
           <Textarea
             value={editPrompt}
             onChange={(e) => setEditPrompt(e.target.value)}
-            rows={10}
-            className="text-sm"
+            rows={textRows}
+            className="text-sm font-mono"
           />
         </div>
         <div className="flex items-center gap-2">

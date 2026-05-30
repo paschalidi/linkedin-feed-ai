@@ -136,29 +136,45 @@ export async function analyzeWritingStyle(postsText: string): Promise<string> {
 
     const prompt = `You are a literary analyst specializing in voice and tone. Your job is to extract the *emotional fingerprint* of a writer — not what they write about, but HOW they write. Focus on tone, authenticity, and personality. Ignore content, topics, and industry specifics entirely.
 
-Analyze the sample posts below and produce a voice guide that captures:
+Below are sample posts. Your task: write a COMPREHENSIVE voice guide with ALL TEN sections listed below. Each section must be at least 3–4 sentences and include SPECIFIC examples (short quotes) from the posts. Do NOT summarize — analyze deeply. This should be a substantial document, not a brief summary.
 
-1. **Emotional Temperature** — What is the baseline energy? Warm? Cold? Playful? Dead serious? Intimate or distant? Does it feel like a conversation at a bar or a boardroom presentation?
+Format your output EXACTLY as follows, with each section as a markdown heading:
 
-2. **Authenticity Markers** — How do they reveal themselves as a real person? Self-deprecation? Honest admissions of uncertainty? Specific personal stories with dates, names, places? Vulnerability without performativity? What makes you trust that a human wrote this, not a brand?
+## 1. Emotional Temperature
+[3–4 sentences analyzing baseline energy. Warm? Cold? Playful? Dead serious? Intimate or distant? Quote specific fragments as evidence.]
 
-3. **Rhythm and Cadence** — How do the sentences breathe? Short staccato bursts? Long flowing paragraphs? Fragments? Repetition for emphasis? Read a few aloud — what is the musical pattern?
+## 2. Authenticity Markers
+[3–4 sentences. How do they reveal themselves as a real person? Self-deprecation? Honest admissions? Specific personal stories with dates/names/places? Quote examples.]
 
-4. **Point of View** — Do they speak from "I" (personal experience) or "we" (tribal), or shift between them? Is it observational, confessional, instructional, or something else? How does their perspective on their own life and work feel?
+## 3. Rhythm and Cadence
+[3–4 sentences. How do sentences breathe? Short bursts? Long paragraphs? Fragments? Repetition? Quote examples showing the musical pattern.]
 
-5. **Relationship with the Reader** — How do they address you? As a peer? A student? A friend? Do they challenge, invite, confess to, or lecture the reader? What is the implied social contract?
+## 4. Point of View
+[3–4 sentences. "I" vs "we"? Observational, confessional, instructional? Quote examples showing perspective shifts.]
 
-6. **Humor and Irony** — Dry wit? Self-mockery? Absurdity? Dark humor? Or completely earnest with zero irony? How do they use humor to build connection or make a point land harder?
+## 5. Relationship with the Reader
+[3–4 sentences. Peer? Student? Friend? Do they challenge, invite, confess? Quote examples of direct address or implied tone.]
 
-7. **Language Texture** — Concrete and sensory, or abstract and conceptual? Do they swear? Use slang? Technical jargon? Poetic language? Simple words carrying heavy meaning? What is the *mouthfeel* of their vocabulary?
+## 6. Humor and Irony
+[3–4 sentences. Dry wit? Self-mockery? Absurdity? Earnest with zero irony? Quote examples of humor or its absence.]
 
-8. **Confidence vs. Uncertainty** — Do they state things as fact, or hedge, or explore openly? How do they handle not knowing something? Is there intellectual humility, or unshakeable conviction, or both?
+## 7. Language Texture
+[3–4 sentences. Concrete/sensory or abstract? Swearing? Slang? Technical jargon? Poetic? Quote words/phrases that show mouthfeel.]
 
-9. **What They Avoid** — What phrases, tones, or moves are completely absent? Corporate speak? Motivational clichés? Humble-bragging? Over-explaining? What would feel *wrong* in their mouth?
+## 8. Confidence vs. Uncertainty
+[3–4 sentences. State facts? Hedge? Explore openly? Intellectual humility or unshakeable conviction? Quote examples of each mode.]
 
-10. **The X-Factor** — If you stripped away the topic, what is the ONE thing that makes this voice unmistakably THEM? The signature move, the tell, the fingerprint that no one else has.
+## 9. What They Avoid
+[3–4 sentences. What phrases, tones, moves are COMPLETELY absent? Corporate speak? Clichés? Humble-bragging? Over-explaining? Be specific about what would feel WRONG in their mouth.]
 
-Output as a vivid, specific style guide that a writer could read and immediately *feel* the voice. Use sensory language. Quote short fragments from the posts as examples. Make it emotionally resonant, not a checklist.
+## 10. The X-Factor
+[3–4 sentences. Stripped of topic, what makes this voice unmistakably THEM? The signature move, the tell, the fingerprint no one else has.]
+
+RULES:
+- You MUST include all 10 sections. Do not skip any.
+- Each section MUST contain at least one direct quote from the posts.
+- Write in vivid, sensory language. A writer should read this and immediately *feel* the voice.
+- Be specific, not generic. Avoid phrases like "they write well" or "their style is engaging." Say WHAT specifically makes it engaging.
 
 POSTS:
 ${postsText}`;
@@ -167,11 +183,16 @@ ${postsText}`;
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 8192,
       },
     });
 
-    return result.response.text() ?? "";
+    const text = result.response.text() ?? "";
+    console.log(
+      `[analyzeWritingStyle] Response length: ${text.length} chars, finish reason:`,
+      result.response.candidates?.[0]?.finishReason
+    );
+    return text;
   });
 }
 
