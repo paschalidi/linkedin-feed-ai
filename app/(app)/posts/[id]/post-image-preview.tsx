@@ -49,7 +49,7 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
         </Button>
       </a>
       <p className="text-xs text-muted-foreground">
-        1200 x 627 px — optimal for LinkedIn
+        1080 x 1350 px — mobile-optimised for LinkedIn
       </p>
     </div>
   );

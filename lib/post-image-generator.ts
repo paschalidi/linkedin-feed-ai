@@ -7,10 +7,13 @@ export interface PostImageOptions {
 }
 
 /**
- * Generate a branded image with the post text rendered on it.
- * Deep forest-green canvas with a soft peach radial bloom at the bottom.
+ * Generate a branded image optimised for mobile LinkedIn feeds.
+ *
+ * Mobile feeds are portrait-oriented, so a 4:5 ratio (1080×1350)
+ * fills the screen edge-to-edge instead of being heavily cropped
+ * like a landscape image.
+ *
  * Uses Playwright to screenshot a styled HTML page.
- * Output: 1200x627 PNG (LinkedIn optimal image size).
  */
 export async function generatePostImage(
   options: PostImageOptions
@@ -19,15 +22,15 @@ export async function generatePostImage(
 
   try {
     const page = await browser.newPage({
-      viewport: { width: 1200, height: 627 },
+      viewport: { width: 1080, height: 1350 },
       deviceScaleFactor: 2,
     });
 
     const html = buildImageHtml(options);
     await page.setContent(html, { waitUntil: "networkidle" });
 
-    // Wait for fonts to load
-    await page.waitForTimeout(800);
+    // Extra time for Google Fonts to arrive
+    await page.waitForTimeout(900);
 
     const screenshot = await page.screenshot({
       type: "png",
@@ -41,26 +44,29 @@ export async function generatePostImage(
 }
 
 function buildImageHtml({ title, content, authorName }: PostImageOptions): string {
-  // Clean up content: strip markdown remnants
+  // Strip markdown remnants
   const cleanContent = content
     .replace(/\*\*/g, "")
     .replace(/\*/g, "")
     .replace(/`/g, "");
 
-  // All non-empty paragraphs — we want the full post
   const lines = cleanContent
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
 
-  // Dynamically shrink fonts so everything fits the canvas
+  /*
+    Fonts are sized for a 1080×1350 canvas.
+    On a 375-px-wide mobile screen LinkedIn scales the image to ~35 %,
+    so we need big base sizes to stay readable.
+  */
   const titleLen = title.length;
   const titleFontSize =
-    titleLen <= 32 ? 48 : titleLen <= 60 ? 40 : titleLen <= 90 ? 33 : 28;
+    titleLen <= 28 ? 72 : titleLen <= 55 ? 60 : titleLen <= 85 ? 50 : 42;
 
   const totalBodyChars = lines.join(" ").length;
   const bodyFontSize =
-    totalBodyChars <= 400 ? 26 : totalBodyChars <= 700 ? 22 : 19;
+    totalBodyChars <= 300 ? 34 : totalBodyChars <= 600 ? 30 : totalBodyChars <= 900 ? 26 : 22;
 
   const bodyHtml = lines
     .map((line) => `<p class="post-line">${escapeHtml(line)}</p>`)
@@ -77,8 +83,8 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      width: 1200px;
-      height: 627px;
+      width: 1080px;
+      height: 1350px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #0d2418;
       color: #ffffff;
@@ -87,28 +93,28 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
     }
 
     /*
-      Bloom pushed well below the canvas so only the very tip of the warm glow
-      peeks up at the bottom edge — text area stays fully clear.
+      Warm peach bloom centred near the bottom.
+      Tall enough to bleed past the canvas edge so only the soft
+      upper glow is visible inside the card.
     */
     .bloom {
       position: absolute;
       left: 50%;
-      bottom: -520px;
+      bottom: -600px;
       transform: translateX(-50%);
       width: 1600px;
-      height: 720px;
+      height: 900px;
       background: radial-gradient(ellipse at center,
         rgba(248, 218, 188, 0.98) 0%,
         rgba(246, 206, 172, 0.80) 18%,
         rgba(240, 188, 150, 0.50) 35%,
         rgba(220, 160, 120, 0.22) 55%,
         rgba(13, 36, 24, 0) 75%);
-      filter: blur(48px);
+      filter: blur(56px);
       pointer-events: none;
       z-index: 0;
     }
 
-    /* Content column — centred vertically and horizontally on the canvas */
     .page {
       position: absolute;
       inset: 0;
@@ -116,23 +122,23 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 48px 100px 28px;
+      padding: 90px 80px 90px;
       text-align: center;
       z-index: 1;
     }
 
     .author {
       position: absolute;
-      bottom: 14px;
+      bottom: 28px;
       left: 0;
       right: 0;
       text-align: center;
       font-family: 'Inter', sans-serif;
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 500;
       color: #0d2418;
-      letter-spacing: 0.18em;
-      opacity: 0.9;
+      letter-spacing: 0.2em;
+      opacity: 0.95;
       z-index: 2;
     }
 
@@ -141,11 +147,11 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
       font-size: ${titleFontSize}px;
       font-weight: 600;
       color: #ffffff;
-      line-height: 1.15;
+      line-height: 1.12;
       letter-spacing: -0.02em;
-      max-width: 920px;
-      margin-bottom: 16px;
-      padding-bottom: 14px;
+      max-width: 860px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     }
 
@@ -154,9 +160,9 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
       font-size: ${bodyFontSize}px;
       font-weight: 400;
       color: rgba(255, 255, 255, 0.88);
-      line-height: 1.5;
-      margin-bottom: 8px;
-      max-width: 920px;
+      line-height: 1.45;
+      margin-bottom: 10px;
+      max-width: 860px;
       letter-spacing: 0.01em;
     }
   </style>
@@ -172,7 +178,6 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
 </html>
   `.trim();
 }
-
 
 function escapeHtml(text: string): string {
   return text
