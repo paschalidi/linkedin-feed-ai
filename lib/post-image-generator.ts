@@ -7,7 +7,8 @@ export interface PostImageOptions {
 }
 
 /**
- * Generate a branded black & white image with the post text rendered on it.
+ * Generate a branded image with the post text rendered on it.
+ * Deep forest-green canvas with a soft peach radial bloom at the bottom.
  * Uses Playwright to screenshot a styled HTML page.
  * Output: 1200x627 PNG (LinkedIn optimal image size).
  */
@@ -40,23 +41,28 @@ export async function generatePostImage(
 }
 
 function buildImageHtml({ title, content, authorName }: PostImageOptions): string {
-  // Clean up content for display: strip markdown remnants
+  // Clean up content: strip markdown remnants
   const cleanContent = content
     .replace(/\*\*/g, "")
     .replace(/\*/g, "")
     .replace(/`/g, "");
 
-  // Truncate at sentence boundary — never cut mid-sentence
-  const { text: truncatedText, truncated } = truncateAtSentenceBoundary(
-    cleanContent,
-    520
-  );
+  // All non-empty paragraphs — we want the full post
+  const lines = cleanContent
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
 
-  const lines = truncatedText.split("\n").filter((l) => l.trim().length > 0);
-  const displayLines = lines.slice(0, 5);
-  const hasMore = truncated || lines.length > 5;
+  // Dynamically shrink fonts so everything fits the canvas
+  const titleLen = title.length;
+  const titleFontSize =
+    titleLen <= 32 ? 48 : titleLen <= 60 ? 40 : titleLen <= 90 ? 33 : 28;
 
-  const bodyText = displayLines
+  const totalBodyChars = lines.join(" ").length;
+  const bodyFontSize =
+    totalBodyChars <= 400 ? 26 : totalBodyChars <= 700 ? 22 : 19;
+
+  const bodyHtml = lines
     .map((line) => `<p class="post-line">${escapeHtml(line)}</p>`)
     .join("");
 
@@ -66,164 +72,107 @@ function buildImageHtml({ title, content, authorName }: PostImageOptions): strin
 <head>
   <meta charset="utf-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap');
-    
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Inter:wght@400;500&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    
+
     body {
       width: 1200px;
       height: 627px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #000000;
+      background: #0d2418;
       color: #ffffff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /*
+      Bloom pushed well below the canvas so only the very tip of the warm glow
+      peeks up at the bottom edge — text area stays fully clear.
+    */
+    .bloom {
+      position: absolute;
+      left: 50%;
+      bottom: -520px;
+      transform: translateX(-50%);
+      width: 1600px;
+      height: 720px;
+      background: radial-gradient(ellipse at center,
+        rgba(248, 218, 188, 0.98) 0%,
+        rgba(246, 206, 172, 0.80) 18%,
+        rgba(240, 188, 150, 0.50) 35%,
+        rgba(220, 160, 120, 0.22) 55%,
+        rgba(13, 36, 24, 0) 75%);
+      filter: blur(48px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Content column — centred vertically and horizontally on the canvas */
+    .page {
+      position: absolute;
+      inset: 0;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 70px 90px;
-      position: relative;
-      overflow: hidden;
+      padding: 48px 100px 28px;
+      text-align: center;
+      z-index: 1;
     }
-    
-    /* White top border */
-    .accent-bar {
+
+    .author {
       position: absolute;
-      top: 0;
+      bottom: 14px;
       left: 0;
       right: 0;
-      height: 4px;
-      background: #ffffff;
-    }
-    
-    /* Subtle grain texture overlay */
-    body::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      opacity: 0.03;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-      pointer-events: none;
-    }
-    
-    .content {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 920px;
-    }
-    
-    .title {
-      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 34px;
-      font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 36px;
-      line-height: 1.15;
-      letter-spacing: -0.02em;
-    }
-    
-    .post-line {
-      font-family: 'Inter', sans-serif;
-      font-size: 24px;
-      font-weight: 300;
-      line-height: 1.55;
-      margin-bottom: 10px;
-      color: #e5e5e5;
-      letter-spacing: 0.01em;
-    }
-    
-    .ellipsis {
-      font-size: 24px;
-      color: #666666;
-      margin-top: 12px;
-      font-weight: 300;
-    }
-    
-    .footer {
-      position: absolute;
-      bottom: 36px;
-      left: 90px;
-      right: 90px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 1;
-      border-top: 1px solid #333333;
-      padding-top: 20px;
-    }
-    
-    .author {
-      font-family: 'Inter', sans-serif;
-      font-size: 15px;
-      font-weight: 500;
-      color: #ffffff;
-      letter-spacing: 0.08em;
-      text-transform: lowercase;
-    }
-    
-    .brand {
+      text-align: center;
       font-family: 'Inter', sans-serif;
       font-size: 13px;
+      font-weight: 500;
+      color: #0d2418;
+      letter-spacing: 0.18em;
+      opacity: 0.9;
+      z-index: 2;
+    }
+
+    .title {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: ${titleFontSize}px;
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      max-width: 920px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .post-line {
+      font-family: 'Inter', sans-serif;
+      font-size: ${bodyFontSize}px;
       font-weight: 400;
-      color: #666666;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.88);
+      line-height: 1.5;
+      margin-bottom: 8px;
+      max-width: 920px;
+      letter-spacing: 0.01em;
     }
   </style>
 </head>
 <body>
-  <div class="accent-bar"></div>
-  <div class="content">
+  <div class="bloom"></div>
+  <div class="page">
     <div class="title">${escapeHtml(title)}</div>
-    ${bodyText}
-    ${hasMore ? '<div class="ellipsis">...</div>' : ""}
+    ${bodyHtml}
   </div>
-  <div class="footer">
-    <div class="author">@${escapeHtml(authorName || "paschalidi")}</div>
-  </div>
+  <div class="author">@${escapeHtml(authorName || "paschalidi")}</div>
 </body>
 </html>
   `.trim();
 }
 
-/**
- * Truncate text at the last complete sentence that fits within maxChars.
- * Never cuts mid-sentence. Falls back to word boundary if no sentence end found.
- */
-function truncateAtSentenceBoundary(
-  text: string,
-  maxChars: number
-): { text: string; truncated: boolean } {
-  if (text.length <= maxChars) {
-    return { text, truncated: false };
-  }
-
-  const slice = text.slice(0, maxChars);
-
-  // Find the last sentence-ending punctuation in the slice
-  // Look for . ! ? followed by space, newline, or end of string
-  const sentenceRegex = /[.!?](?=\s|$)/g;
-  let lastBoundary = -1;
-  let match;
-
-  while ((match = sentenceRegex.exec(slice)) !== null) {
-    lastBoundary = match.index;
-  }
-
-  // If we found a sentence boundary and it's not too early, cut there
-  if (lastBoundary > maxChars * 0.4) {
-    return { text: text.slice(0, lastBoundary + 1), truncated: true };
-  }
-
-  // Fallback: find last word boundary (space) that's not too early
-  const lastSpace = slice.lastIndexOf(" ");
-  if (lastSpace > maxChars * 0.4) {
-    return { text: text.slice(0, lastSpace), truncated: true };
-  }
-
-  // Last resort: hard cut at maxChars
-  return { text: slice, truncated: true };
-}
 
 function escapeHtml(text: string): string {
   return text

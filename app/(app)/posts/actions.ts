@@ -189,6 +189,18 @@ export async function savePostContent(id: string, content: string) {
   }
 }
 
+export async function saveIdeaTitle(ideaId: string, title: string) {
+  try {
+    return await prisma.dailyIdea.update({
+      where: { id: ideaId },
+      data: { title },
+    });
+  } catch (err: any) {
+    console.error("saveIdeaTitle error:", err);
+    throw new Error(err?.message || "Failed to save title");
+  }
+}
+
 export async function updatePostStatus(id: string, status: string) {
   try {
     return await prisma.generatedPost.update({

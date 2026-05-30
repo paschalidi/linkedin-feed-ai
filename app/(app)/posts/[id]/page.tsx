@@ -15,6 +15,7 @@ import Link from "next/link";
 import { VersionToolbar } from "./version-toolbar";
 import { PostEditor } from "./post-editor";
 import PostImagePreview from "./post-image-preview";
+import { TitleEditor } from "./title-editor";
 
 export default async function PostDetailPage({
   params,
@@ -53,10 +54,12 @@ export default async function PostDetailPage({
       </div>
 
       <div>
-        <h1 className="text-4xl font-bold tracking-tight">
-          {idea?.title || "Generated Post"}
-        </h1>
-        <div className="flex items-center gap-2 mt-2">
+        {idea ? (
+          <TitleEditor ideaId={idea.id} initialTitle={idea.title} />
+        ) : (
+          <h1 className="text-4xl font-bold tracking-tight">Generated Post</h1>
+        )}
+        <div className="flex items-center gap-2 mt-4">
           <Badge
             variant={
               post.status === "approved"
