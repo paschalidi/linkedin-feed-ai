@@ -134,24 +134,31 @@ export async function analyzeWritingStyle(postsText: string): Promise<string> {
     const genAI = new GoogleGenerativeAI(getApiKey());
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const prompt = `You are analyzing a corpus of LinkedIn posts to extract a writing style guide.
+    const prompt = `You are a literary analyst specializing in voice and tone. Your job is to extract the *emotional fingerprint* of a writer — not what they write about, but HOW they write. Focus on tone, authenticity, and personality. Ignore content, topics, and industry specifics entirely.
 
-Below are sample posts. Identify the patterns:
+Analyze the sample posts below and produce a voice guide that captures:
 
-1. Average post length (words / paragraphs)
-2. Sentence structure (short punchy / flowing / mixed)
-3. Common opening hooks
-4. Whitespace and formatting conventions
-5. Tone (confident / vulnerable / contrarian / educational / ...)
-6. Vocabulary register (formal / casual / technical / mixed)
-7. How they use data, numbers, specifics
-8. How they tell stories or share personal anecdotes
-9. Closing patterns (call-to-action / declarative summary / question)
-10. What they DON'T do (clichés they avoid)
+1. **Emotional Temperature** — What is the baseline energy? Warm? Cold? Playful? Dead serious? Intimate or distant? Does it feel like a conversation at a bar or a boardroom presentation?
 
-Output a writing style guide a junior writer could follow to imitate this voice.
-Be specific. Use examples from the posts.
-Output as markdown.
+2. **Authenticity Markers** — How do they reveal themselves as a real person? Self-deprecation? Honest admissions of uncertainty? Specific personal stories with dates, names, places? Vulnerability without performativity? What makes you trust that a human wrote this, not a brand?
+
+3. **Rhythm and Cadence** — How do the sentences breathe? Short staccato bursts? Long flowing paragraphs? Fragments? Repetition for emphasis? Read a few aloud — what is the musical pattern?
+
+4. **Point of View** — Do they speak from "I" (personal experience) or "we" (tribal), or shift between them? Is it observational, confessional, instructional, or something else? How does their perspective on their own life and work feel?
+
+5. **Relationship with the Reader** — How do they address you? As a peer? A student? A friend? Do they challenge, invite, confess to, or lecture the reader? What is the implied social contract?
+
+6. **Humor and Irony** — Dry wit? Self-mockery? Absurdity? Dark humor? Or completely earnest with zero irony? How do they use humor to build connection or make a point land harder?
+
+7. **Language Texture** — Concrete and sensory, or abstract and conceptual? Do they swear? Use slang? Technical jargon? Poetic language? Simple words carrying heavy meaning? What is the *mouthfeel* of their vocabulary?
+
+8. **Confidence vs. Uncertainty** — Do they state things as fact, or hedge, or explore openly? How do they handle not knowing something? Is there intellectual humility, or unshakeable conviction, or both?
+
+9. **What They Avoid** — What phrases, tones, or moves are completely absent? Corporate speak? Motivational clichés? Humble-bragging? Over-explaining? What would feel *wrong* in their mouth?
+
+10. **The X-Factor** — If you stripped away the topic, what is the ONE thing that makes this voice unmistakably THEM? The signature move, the tell, the fingerprint that no one else has.
+
+Output as a vivid, specific style guide that a writer could read and immediately *feel* the voice. Use sensory language. Quote short fragments from the posts as examples. Make it emotionally resonant, not a checklist.
 
 POSTS:
 ${postsText}`;

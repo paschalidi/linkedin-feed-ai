@@ -4,6 +4,7 @@ import {
   deleteStyleProfile,
   getStyleProfiles,
   setActiveProfile,
+  updateStyleProfile,
 } from "./actions";
 import {
   getLinkedInProfiles,
@@ -26,8 +27,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Palette, Trash2, Star, Plus } from "lucide-react";
+import { Palette, Plus } from "lucide-react";
 import LinkedInProfileList from "./linkedin-profile-list";
+import StyleProfileCard from "./style-profile-card";
 
 export default async function StylesPage() {
   const profiles = await getStyleProfiles();
@@ -111,50 +113,25 @@ export default async function StylesPage() {
             ) : (
               <div className="space-y-4">
                 {profiles.map((profile) => (
-                  <div
+                  <StyleProfileCard
                     key={profile.id}
-                    className="rounded-lg border p-5 space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-base">{profile.name}</span>
-                        {profile.isActive && (
-                          <Badge variant="default">
-                            <Star className="h-4 w-4 mr-1" /> Active
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {!profile.isActive && (
-                          <form
-                            action={async () => {
-                              "use server";
-                              await setActiveProfile(profile.id);
-                              revalidatePath("/styles");
-                            }}
-                          >
-                            <Button variant="ghost" size="sm" type="submit">
-                              <Star className="h-5 w-5 text-muted-foreground" />
-                            </Button>
-                          </form>
-                        )}
-                        <form
-                          action={async () => {
-                            "use server";
-                            await deleteStyleProfile(profile.id);
-                            revalidatePath("/styles");
-                          }}
-                        >
-                          <Button variant="ghost" size="icon" type="submit">
-                            <Trash2 className="h-5 w-5 text-muted-foreground" />
-                          </Button>
-                        </form>
-                      </div>
-                    </div>
-                    <p className="text-base text-muted-foreground line-clamp-3">
-                      {profile.promptText}
-                    </p>
-                  </div>
+                    profile={profile}
+                    onSetActive={async () => {
+                      "use server";
+                      await setActiveProfile(profile.id);
+                      revalidatePath("/styles");
+                    }}
+                    onDelete={async () => {
+                      "use server";
+                      await deleteStyleProfile(profile.id);
+                      revalidatePath("/styles");
+                    }}
+                    onUpdate={async (name, promptText) => {
+                      "use server";
+                      await updateStyleProfile(profile.id, name, promptText);
+                      revalidatePath("/styles");
+                    }}
+                  />
                 ))}
               </div>
             )}

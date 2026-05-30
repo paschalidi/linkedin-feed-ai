@@ -60,3 +60,15 @@ export async function setActiveProfile(id: string) {
     throw new Error(err?.message || "Failed to set active profile");
   }
 }
+
+export async function updateStyleProfile(id: string, name: string, promptText: string) {
+  try {
+    return await prisma.styleProfile.update({
+      where: { id },
+      data: { name, promptText },
+    });
+  } catch (err: any) {
+    console.error("updateStyleProfile error:", err);
+    throw new Error(err?.message || "Failed to update style profile");
+  }
+}
