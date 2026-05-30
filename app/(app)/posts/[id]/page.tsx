@@ -10,10 +10,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, Download, ImageIcon } from "lucide-react";
+import { ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { VersionToolbar } from "./version-toolbar";
 import { PostEditor } from "./post-editor";
+import PostImagePreview from "./post-image-preview";
 
 export default async function PostDetailPage({
   params,
@@ -143,33 +144,7 @@ export default async function PostDetailPage({
             </div>
 
             {/* Branded Image Preview */}
-            <div className="space-y-2">
-              <p className="text-base font-medium flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
-                Branded Image
-              </p>
-              <div className="rounded-lg border overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/posts/${id}/image`}
-                  alt="Branded post preview"
-                  className="w-full h-auto"
-                  loading="lazy"
-                />
-              </div>
-              <a
-                href={`/api/posts/${id}/image`}
-                download={`linkedin-post-${id.slice(0, 8)}.png`}
-              >
-                <Button variant="outline" size="sm" className="w-full">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download PNG
-                </Button>
-              </a>
-              <p className="text-xs text-muted-foreground">
-                1200 x 627 px — optimal for LinkedIn
-              </p>
-            </div>
+            <PostImagePreview postId={id} />
 
             {post.status === "approved" && (
               <form
