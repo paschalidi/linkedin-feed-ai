@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles, ClipboardList, ArrowRight } from "lucide-react";
+import { Plus, Sparkles, ClipboardList, ArrowRight, Clock, Rss, Lightbulb } from "lucide-react";
 import Link from "next/link";
+import { getAutomationStatus } from "@/lib/automation/status";
 
 export default async function DashboardPage() {
   const ideas = await prisma.dailyIdea.findMany({
@@ -20,6 +21,8 @@ export default async function DashboardPage() {
   const draftCount = ideas.length;
   const pendingReview = posts.filter((p) => p.status === "draft").length;
   const approvedCount = posts.filter((p) => p.status === "approved").length;
+
+  const automation = await getAutomationStatus();
 
   return (
     <div className="space-y-8">
@@ -85,6 +88,70 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Automation Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Rss className="h-4 w-4" />
+                Next RSS Sync
+              </div>
+              <p className="text-lg font-medium">{automation.nextRssSync}</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Lightbulb className="h-4 w-4" />
+                Next Idea Gen
+              </div>
+              <p className="text-lg font-medium">{automation.nextIdeaGen}</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                Queue
+              </div>
+              <p className="text-lg font-medium">
+                {automation.queueLength} pending
+                {automation.nextPublish && (
+                  <span className="text-sm text-muted-foreground block">
+                    Next: {automation.nextPublish}
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ClipboardList className="h-4 w-4" />
+                Recent Logs
+              </div>
+              <div className="space-y-1">
+                {automation.recentLogs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No runs yet</p>
+                ) : (
+                  automation.recentLogs.slice(0, 3).map((log) => (
+                    <p key={log.id} className="text-sm">
+                      <span
+                        className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                          log.status === "success"
+                            ? "bg-green-500"
+                            : log.status === "failed"
+                            ? "bg-red-500"
+                            : "bg-yellow-500"
+                        }`}
+                      />
+                      {log.jobType} — {log.status}
+                    </p>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
