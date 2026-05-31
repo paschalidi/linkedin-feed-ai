@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Sparkles, ClipboardList, ArrowRight, Clock, Rss, Lightbulb, Calendar } from "lucide-react";
 import Link from "next/link";
 import { getAutomationStatus } from "@/lib/automation/status";
+import { addToQueue } from "../posts/queue-actions";
+import { getNextPreferredPostingTime } from "@/lib/automation/schedule";
+import { revalidatePath } from "next/cache";
 
 export default async function DashboardPage() {
   const ideas = await prisma.dailyIdea.findMany({
@@ -29,6 +32,17 @@ export default async function DashboardPage() {
     where: { status: "pending" },
     include: { post: { include: { idea: true } } },
     orderBy: { scheduledAt: "asc" },
+  });
+
+  // Fetch approved posts that are NOT queued
+  const approvedNotQueued = await prisma.generatedPost.findMany({
+    where: {
+      status: "approved",
+      queueItem: { is: null },
+    },
+    include: { idea: true },
+    orderBy: { createdAt: "asc" },
+    take: 3,
   });
 
   return (
@@ -145,6 +159,48 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Approved but not queued */}
+      {approvedNotQueued.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ready to Publish</CardTitle>
+            <CardDescription>
+              {approvedNotQueued.length} approved post{approvedNotQueued.length !== 1 ? "s" : ""} waiting to be queued
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {approvedNotQueued.map((post) => (
+                <div
+                  key={post.id}
+                  className="flex items-center justify-between rounded-lg border p-4"
+                >
+                  <div>
+                    <p className="font-medium">{post.idea?.title || "Post"}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(post.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <form
+                    action={async () => {
+                      "use server";
+                      const scheduledAt = await getNextPreferredPostingTime();
+                      await addToQueue(post.id, scheduledAt);
+                      revalidatePath("/dashboard");
+                      revalidatePath("/posts");
+                    }}
+                  >
+                    <Button type="submit" size="sm">
+                      Queue for Publishing
+                    </Button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

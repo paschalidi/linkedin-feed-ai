@@ -7,7 +7,11 @@ import { archivePost } from "./actions";
 export default async function PostsPage() {
   const posts = await prisma.generatedPost.findMany({
     where: { status: { not: "archived" } },
-    orderBy: { createdAt: "desc" },
+    orderBy: [
+      // Sort posted status last, then by createdAt desc
+      { status: "asc" },
+      { createdAt: "desc" },
+    ],
     include: { idea: true },
     omit: { brandedImageData: true },
   });
