@@ -7,13 +7,11 @@ export interface PostImageOptions {
 }
 
 /**
- * Generate a branded image optimised for mobile LinkedIn feeds.
+ * Generate a branded image that looks like a phone screen.
  *
- * Mobile feeds are portrait-oriented, so a 4:5 ratio (1080×1350)
- * fills the screen edge-to-edge instead of being heavily cropped
- * like a landscape image.
- *
- * Uses Playwright to screenshot a styled HTML page.
+ * The image is rendered as a realistic phone device sitting on
+ * a dark surface, with the post text displayed inside the screen.
+ * Output: 960x1200 PNG (4:5 portrait, mobile-optimised for LinkedIn).
  */
 export async function generatePostImage(
   options: PostImageOptions
@@ -29,7 +27,6 @@ export async function generatePostImage(
     const html = buildImageHtml(options);
     await page.setContent(html, { waitUntil: "networkidle" });
 
-    // Extra time for Google Fonts to arrive
     await page.waitForTimeout(900);
 
     const screenshot = await page.screenshot({
@@ -44,7 +41,6 @@ export async function generatePostImage(
 }
 
 function buildImageHtml({ content, authorName }: PostImageOptions): string {
-  // Strip markdown remnants
   const cleanContent = content
     .replace(/\*\*/g, "")
     .replace(/\*/g, "")
@@ -55,13 +51,7 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
 
-  /*
-    Show only the first 2 paragraphs on the image — the hook + the punch.
-    This keeps the image punchy and readable on mobile.
-    The full post stays at 120–180 words; the image is just a teaser.
-  */
   const displayLines = lines.slice(0, 2);
-  const hasMore = lines.length > 2;
 
   const bodyHtml = displayLines
     .map((line) => `<p class="post-line">${escapeHtml(line)}</p>`)
@@ -81,70 +71,162 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
       width: 960px;
       height: 1200px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0d2418;
-      color: #ffffff;
+      background: #0a0a0a;
       position: relative;
       overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
-    /*
-      Warm peach bloom centred near the bottom.
-      Tall enough to bleed past the canvas edge so only the soft
-      upper glow is visible inside the card.
-    */
+    /* Subtle vignette on the table surface */
+    body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 40%,
+        rgba(30, 30, 35, 0.6) 0%,
+        rgba(10, 10, 10, 0) 70%);
+      pointer-events: none;
+    }
+
+    /* Phone device */
+    .phone {
+      position: relative;
+      width: 720px;
+      height: 1040px;
+      background: #1a1a1a;
+      border-radius: 60px;
+      padding: 18px;
+      box-shadow:
+        0 0 0 2px #333,
+        0 40px 80px rgba(0, 0, 0, 0.6),
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      z-index: 1;
+    }
+
+    /* Phone screen */
+    .screen {
+      width: 100%;
+      height: 100%;
+      background: #0d2418;
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 80px 48px 80px;
+      text-align: center;
+    }
+
+    /* Notch */
+    .notch {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 28px;
+      background: #1a1a1a;
+      border-radius: 14px;
+      z-index: 3;
+    }
+
+    /* Status bar time */
+    .status-time {
+      position: absolute;
+      top: 20px;
+      left: 32px;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      z-index: 2;
+    }
+
+    /* Status bar icons (simplified) */
+    .status-icons {
+      position: absolute;
+      top: 20px;
+      right: 32px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .status-icon {
+      width: 18px;
+      height: 10px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .status-icon.battery {
+      width: 24px;
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .status-icon.battery::after {
+      content: '';
+      position: absolute;
+      right: -3px;
+      top: 3px;
+      width: 2px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 0 1px 1px 0;
+    }
+
+    /* Bottom home indicator */
+    .home-bar {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+      z-index: 2;
+    }
+
+    /* Bloom inside the screen */
     .bloom {
       position: absolute;
       left: 50%;
-      bottom: -600px;
+      bottom: -420px;
       transform: translateX(-50%);
-      width: 1400px;
-      height: 800px;
+      width: 1100px;
+      height: 700px;
       background: radial-gradient(ellipse at center,
         rgba(248, 218, 188, 0.98) 0%,
         rgba(246, 206, 172, 0.80) 18%,
         rgba(240, 188, 150, 0.50) 35%,
         rgba(220, 160, 120, 0.22) 55%,
         rgba(13, 36, 24, 0) 75%);
-      filter: blur(56px);
+      filter: blur(48px);
       pointer-events: none;
       z-index: 0;
     }
 
-    .page {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 80px 70px 80px;
-      text-align: center;
+    /* Content */
+    .content {
+      position: relative;
       z-index: 1;
-    }
-
-    .author {
-      position: absolute;
-      bottom: 22px;
-      left: 0;
-      right: 0;
-      text-align: center;
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      color: #0d2418;
-      letter-spacing: 0.2em;
-      opacity: 0.95;
-      z-index: 2;
+      width: 100%;
     }
 
     .post-line {
       font-family: 'Inter', sans-serif;
-      font-size: 40px;
+      font-size: 36px;
       font-weight: 400;
       color: rgba(255, 255, 255, 0.92);
-      line-height: 1.35;
-      margin-bottom: 16px;
-      max-width: 760px;
+      line-height: 1.4;
+      margin-bottom: 14px;
       letter-spacing: 0.01em;
     }
 
@@ -152,23 +234,42 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
       margin-bottom: 0;
     }
 
-    .ellipsis {
+    .author {
+      position: absolute;
+      bottom: 42px;
+      left: 0;
+      right: 0;
+      text-align: center;
       font-family: 'Inter', sans-serif;
-      font-size: 46px;
-      font-weight: 400;
-      color: rgba(255, 255, 255, 0.5);
-      line-height: 1.35;
-      margin-top: 12px;
-      max-width: 860px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #0d2418;
+      letter-spacing: 0.18em;
+      opacity: 0.95;
+      z-index: 2;
     }
   </style>
 </head>
 <body>
-  <div class="bloom"></div>
-  <div class="page">
-    ${bodyHtml}
+  <div class="phone">
+    <div class="screen">
+      <div class="notch"></div>
+      <div class="status-time">9:41</div>
+      <div class="status-icons">
+        <div class="status-icon" style="width: 16px; height: 10px; clip-path: polygon(0 70%, 30% 0, 100% 0, 100% 100%, 0 100%);"></div>
+        <div class="status-icon wifi" style="width: 14px; height: 10px; background: transparent; border: 2px solid rgba(255,255,255,0.9); border-top: none; border-radius: 0 0 8px 8px; position: relative;">
+          <div style="position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: rgba(255,255,255,0.9); border-radius: 50%;"></div>
+        </div>
+        <div class="status-icon battery"></div>
+      </div>
+      <div class="bloom"></div>
+      <div class="content">
+        ${bodyHtml}
+      </div>
+      <div class="author">@${escapeHtml(authorName || "paschalidi")}</div>
+      <div class="home-bar"></div>
+    </div>
   </div>
-  <div class="author">@${escapeHtml(authorName || "paschalidi")}</div>
 </body>
 </html>
   `.trim();
