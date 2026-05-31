@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles, ClipboardList, ArrowRight, Clock, Rss, Lightbulb } from "lucide-react";
+import { Plus, Sparkles, ClipboardList, ArrowRight, Clock, Rss, Lightbulb, Calendar } from "lucide-react";
 import Link from "next/link";
 import { getAutomationStatus } from "@/lib/automation/status";
 
@@ -23,6 +23,13 @@ export default async function DashboardPage() {
   const approvedCount = posts.filter((p) => p.status === "approved").length;
 
   const automation = await getAutomationStatus();
+
+  // Fetch next queued post
+  const nextQueueItem = await prisma.publishQueue.findFirst({
+    where: { status: "pending" },
+    include: { post: { include: { idea: true } } },
+    orderBy: { scheduledAt: "asc" },
+  });
 
   return (
     <div className="space-y-8">
@@ -83,6 +90,56 @@ export default async function DashboardPage() {
               <Button className="mt-4 w-full" variant="outline" size="default">
                 <Sparkles className="h-5 w-5 mr-2" />
                 Generate
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Next Up Card */}
+        <Card className={nextQueueItem ? "border-blue-200 bg-blue-50/50" : ""}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Next Up
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {nextQueueItem ? (
+              <div className="space-y-2">
+                <div className="text-lg font-bold text-blue-900 truncate">
+                  {nextQueueItem.post.idea?.title || "Post"}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Scheduled for{" "}
+                  <span className="font-medium text-foreground">
+                    {new Date(nextQueueItem.scheduledAt).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {automation.queueLength - 1 > 0
+                    ? `+${automation.queueLength - 1} more in queue`
+                    : "Last item in queue"}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="text-lg font-bold text-muted-foreground">
+                  Nothing queued
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Approve a post to auto-queue it for publishing
+                </p>
+              </div>
+            )}
+            <Link href="/posts">
+              <Button className="mt-4 w-full" variant="outline" size="default">
+                <ClipboardList className="h-5 w-5 mr-2" />
+                Manage Queue
               </Button>
             </Link>
           </CardContent>
