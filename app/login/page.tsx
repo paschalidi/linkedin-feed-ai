@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ensureDevUser } from "./dev-login";
+import { getURL } from "@/lib/utils/url";
 
 const COOLDOWN_SECONDS = 60;
 const STORAGE_KEY = "magic_link_last_sent";
@@ -39,7 +40,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${getURL()}auth/callback`,
         },
       });
 
