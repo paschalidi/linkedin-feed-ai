@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 const DEFAULT_SETTINGS = {
   autoSyncRss: true,
@@ -52,6 +53,8 @@ export async function saveSettings(formData: FormData) {
         data: { ...data, userId: "default" },
       });
     }
+
+    revalidatePath("/settings");
   } catch (err: any) {
     console.error("saveSettings error:", err);
     throw new Error(err?.message || "Failed to save settings");
