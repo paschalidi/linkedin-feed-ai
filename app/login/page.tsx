@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ensureDevUser } from "./dev-login";
 
-const COOLDOWN_SECONDS = 60;
+const COOLDOWN_SECONDS = 600; // 10 minutes to match Supabase free tier email limits
 const STORAGE_KEY = "magic_link_last_sent";
 
 export default function LoginPage() {
