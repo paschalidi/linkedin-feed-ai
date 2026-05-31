@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ensureDevUser, validateDevPassword } from "./dev-login";
+import { signInWithDevPassword } from "./dev-login";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -17,23 +17,14 @@ export default function LoginPage() {
     setMessage("");
 
     try {
-      // Validate password against env var
-      const isValid = await validateDevPassword(password);
-      if (!isValid) {
-        setMessage("Invalid password.");
-        setLoading(false);
-        return;
-      }
+      const { email, password: devPassword } = await signInWithDevPassword(password);
 
-      // Ensure dev user exists and get credentials
-      const { email: devEmail, password: devPassword } = await ensureDevUser();
-
-      // Sign in with Supabase
+      // Sign in with Supabase client
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
 
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: devEmail,
+        email,
         password: devPassword,
       });
 
@@ -45,7 +36,8 @@ export default function LoginPage() {
         window.location.href = "/dashboard";
       }
     } catch (error: any) {
-      setMessage(error.message || "Login failed. Check console for details.");
+      console.error("Login error:", error);
+      setMessage(error.message || "Login failed.");
     } finally {
       setLoading(false);
     }
@@ -94,7 +86,9 @@ export default function LoginPage() {
             {message && (
               <p
                 className={`text-base text-center ${
-                  message.includes("failed") || message.includes("Invalid")
+                  message.includes("failed") ||
+                  message.includes("Invalid") ||
+                  message.includes("not set")
                     ? "text-destructive"
                     : "text-green-600"
                 }`}

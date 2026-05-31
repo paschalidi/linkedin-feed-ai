@@ -8,29 +8,33 @@ function getDevPassword(): string {
   const password = process.env.DEV_PASSWORD;
   if (!password) {
     throw new Error(
-      "DEV_PASSWORD is not set.\n\n" +
-      "Add a strong password to your .env file:\n" +
-      "DEV_PASSWORD=your-very-strong-password-here"
+      "DEV_PASSWORD environment variable is not set. " +
+      "Add it to .env.local for local dev or to Vercel env vars for production."
     );
   }
-  return password;
+  return password.trim();
 }
 
-export async function ensureDevUser() {
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
-  const devPassword = getDevPassword();
+export async function signInWithDevPassword(inputPassword: string) {
+  "use server";
 
+  // 1. Check env var exists
+  const expectedPassword = getDevPassword();
+
+  // 2. Validate password
+  if (inputPassword.trim() !== expectedPassword) {
+    throw new Error("Invalid password.");
+  }
+
+  // 3. Ensure Supabase secret key exists
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
   if (!secretKey) {
     throw new Error(
-      "SUPABASE_SECRET_KEY is not set.\n\n" +
-      "To use Dev Login, add your secret key to .env:\n" +
-      "1. Go to https://supabase.com/dashboard/project/_/settings/api\n" +
-      "2. Under 'Secret API key', click 'Generate new secret key'\n" +
-      "3. Copy the sb_secret_... key\n" +
-      "4. Add it to your .env file: SUPABASE_SECRET_KEY=sb_secret_..."
+      "SUPABASE_SECRET_KEY is not set. Check your environment variables."
     );
   }
 
+  // 4. Ensure user exists in Supabase
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     secretKey,
@@ -42,9 +46,7 @@ export async function ensureDevUser() {
     }
   );
 
-  // Check if user exists
   const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-
   if (listError) {
     throw new Error(`Failed to list users: ${listError.message}`);
   }
@@ -52,41 +54,29 @@ export async function ensureDevUser() {
   const devUser = users.find((u) => u.email === ALLOWED_EMAIL);
 
   if (!devUser) {
-    // Create the dev user
+    // Create the user
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: ALLOWED_EMAIL,
-      password: devPassword,
+      password: expectedPassword,
       email_confirm: true,
       user_metadata: { is_dev_user: true },
     });
 
     if (createError) {
-      throw new Error(`Failed to create dev user: ${createError.message}`);
+      throw new Error(`Failed to create user: ${createError.message}`);
     }
-
-    return { created: true, email: ALLOWED_EMAIL, password: devPassword };
-  }
-
-  // Update password in case env var changed
-  await supabaseAdmin.auth.admin.updateUserById(devUser.id, {
-    password: devPassword,
-  });
-
-  // Ensure email is confirmed
-  if (!devUser.email_confirmed_at) {
+  } else {
+    // Update password in case env var changed
     await supabaseAdmin.auth.admin.updateUserById(devUser.id, {
-      email_confirm: true,
+      password: expectedPassword,
     });
+
+    if (!devUser.email_confirmed_at) {
+      await supabaseAdmin.auth.admin.updateUserById(devUser.id, {
+        email_confirm: true,
+      });
+    }
   }
 
-  return { created: false, email: ALLOWED_EMAIL, password: devPassword };
-}
-
-export async function validateDevPassword(password: string): Promise<boolean> {
-  try {
-    const expected = getDevPassword();
-    return password === expected;
-  } catch {
-    return false;
-  }
+  return { email: ALLOWED_EMAIL, password: expectedPassword };
 }
