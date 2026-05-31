@@ -10,17 +10,31 @@ interface PostImagePreviewProps {
 }
 
 export default function PostImagePreview({ postId }: PostImagePreviewProps) {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [version, setVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const imageUrl = `/api/posts/${postId}/image?t=${refreshKey}`;
+  // v param busts browser cache after a refresh; regenerate forces server to create a new image
+  const imageUrl = `/api/posts/${postId}/image?v=${version}`;
+  const refreshUrl = `/api/posts/${postId}/image?v=${version + 1}&regenerate=1`;
 
   const handleRefresh = useCallback(() => {
     setError(null);
     setIsLoading(true);
-    setRefreshKey((k) => k + 1);
-  }, []);
+
+    // Fetch the refresh URL to force regeneration, then bump version to show it
+    fetch(refreshUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to refresh image");
+        setVersion((v) => v + 1);
+      })
+      .catch(() => {
+        setError("Failed to refresh image. Try again.");
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [refreshUrl]);
 
   const handleLoad = useCallback(() => {
     setIsLoading(false);
@@ -29,7 +43,7 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
 
   const handleError = useCallback(() => {
     setIsLoading(false);
-    setError("Failed to generate image. Try again.");
+    setError("Failed to load image.");
   }, []);
 
   return (
@@ -60,27 +74,28 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
         </div>
       )}
 
-      {/* Aspect-ratio wrapper — fills the column width at the correct 1200:627 ratio */}
-      <div
-        className="relative w-full border rounded-lg overflow-hidden shadow-sm bg-muted"
-        style={{ aspectRatio: `${IMAGE_WIDTH} / ${IMAGE_HEIGHT}` }}
-      >
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        )}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={imageUrl}
-          src={imageUrl}
-          alt="Branded post preview"
-          width={IMAGE_WIDTH}
-          height={IMAGE_HEIGHT}
-          className="absolute inset-0 w-full h-full object-cover"
-          onLoad={handleLoad}
-          onError={handleError}
-        />
+      <div className="flex justify-center">
+        <div
+          className="relative border rounded-lg overflow-hidden shadow-sm"
+          style={{ width: IMAGE_WIDTH, height: IMAGE_HEIGHT }}
+        >
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
+              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            key={imageUrl}
+            src={imageUrl}
+            alt="Branded post preview"
+            width={IMAGE_WIDTH}
+            height={IMAGE_HEIGHT}
+            className="block"
+            onLoad={handleLoad}
+            onError={handleError}
+          />
+        </div>
       </div>
 
       <a
@@ -93,7 +108,8 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
         </Button>
       </a>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        <strong>{IMAGE_WIDTH} × {IMAGE_HEIGHT} px</strong> — LinkedIn OG optimal size.
+        <strong>{IMAGE_WIDTH} x {IMAGE_HEIGHT} px</strong> — phone-screen dimensions.
+        The image stays the same even when you edit the post text. Click Refresh to generate a new one.
       </p>
     </div>
   );

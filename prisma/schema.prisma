@@ -107,6 +107,7 @@ model GeneratedPost {
   currentVersionIndex Int?      @map("current_version_index")
   linkedInPostId      String?   @map("linkedin_post_id")
   publishedToLinkedInAt DateTime? @map("published_to_linkedin_at")
+  brandedImageData    Bytes?    @map("branded_image_data")
   createdAt           DateTime  @default(now()) @map("created_at")
 
   @@map("generated_posts")
