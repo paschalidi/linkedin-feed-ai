@@ -224,8 +224,6 @@ export function cleanPostOutput(text: string): string {
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       // Remove bare URLs in markdown
       .replace(/<([^>]+)>/g, "$1")
-      // Remove stray brackets
-      .replace(/\[|\]/g, "")
       // Clean up double spaces
       .replace(/  +/g, " ")
       // Trim lines
