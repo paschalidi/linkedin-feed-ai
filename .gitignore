@@ -43,3 +43,7 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+
+# planning documents
+/plans
+/.idea

@@ -109,6 +109,45 @@ model GeneratedPost {
   publishedToLinkedInAt DateTime? @map("published_to_linkedin_at")
   brandedImageData    Bytes?    @map("branded_image_data")
   createdAt           DateTime  @default(now()) @map("created_at")
+  queueItem           PublishQueue?
 
   @@map("generated_posts")
+}
+
+model UserSettings {
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  autoSyncRss         Boolean  @default(true) @map("auto_sync_rss")
+  autoGenerateIdeas   Boolean  @default(false) @map("auto_generate_ideas")
+  autoPublishApproved Boolean  @default(false) @map("auto_publish_approved")
+  timezone            String   @default("UTC")
+  preferredPostingTime String  @default("09:00") @map("preferred_posting_time")
+  maxPostsPerDay      Int      @default(1) @map("max_posts_per_day")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("user_settings")
+}
+
+model PublishQueue {
+  id          String    @id @default(uuid())
+  postId      String    @unique @map("post_id")
+  post        GeneratedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  scheduledAt DateTime  @map("scheduled_at")
+  status      String    @default("pending") // pending | published | failed
+  publishedAt DateTime? @map("published_at")
+  error       String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("publish_queue")
+}
+
+model AutomationLog {
+  id        String   @id @default(uuid())
+  jobType   String   @map("job_type")
+  status    String   // success | failed | skipped
+  details   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("automation_logs")
 }
