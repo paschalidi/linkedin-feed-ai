@@ -118,7 +118,7 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
       flex-direction: column;
       justify-content: flex-start;
       align-items: center;
-      padding: 48px 28px 120px;
+      padding: 72px 28px 120px;
       text-align: center;
       z-index: 1;
     }
