@@ -2,7 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const DEV_EMAIL = "dev@linkedin-feed-ai.local";
+const ALLOWED_EMAIL = "paschalidi@outlook.com";
 const DEV_PASSWORD = "devpassword123";
 
 export async function ensureDevUser() {
@@ -38,12 +38,12 @@ export async function ensureDevUser() {
     throw new Error(`Failed to list users: ${listError.message}`);
   }
 
-  const devUser = users.find((u) => u.email === DEV_EMAIL);
+  const devUser = users.find((u) => u.email === ALLOWED_EMAIL);
 
   if (!devUser) {
     // Create the dev user
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: DEV_EMAIL,
+      email: ALLOWED_EMAIL,
       password: DEV_PASSWORD,
       email_confirm: true,
       user_metadata: { is_dev_user: true },
@@ -53,7 +53,7 @@ export async function ensureDevUser() {
       throw new Error(`Failed to create dev user: ${createError.message}`);
     }
 
-    return { created: true, email: DEV_EMAIL, password: DEV_PASSWORD };
+    return { created: true, email: ALLOWED_EMAIL, password: DEV_PASSWORD };
   }
 
   // Ensure email is confirmed
@@ -63,5 +63,5 @@ export async function ensureDevUser() {
     });
   }
 
-  return { created: false, email: DEV_EMAIL, password: DEV_PASSWORD };
+  return { created: false, email: ALLOWED_EMAIL, password: DEV_PASSWORD };
 }

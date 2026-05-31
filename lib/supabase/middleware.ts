@@ -56,5 +56,14 @@ export const updateSession = async (request: NextRequest) => {
     return NextResponse.redirect(url);
   }
 
+  // Only allow paschalidi@outlook.com
+  if (user && user.email !== "paschalidi@outlook.com") {
+    await supabase.auth.signOut();
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("error", "unauthorized");
+    return NextResponse.redirect(url);
+  }
+
   return supabaseResponse;
 };

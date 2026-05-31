@@ -24,6 +24,12 @@ export default function LoginPage() {
       return;
     }
 
+    if (email.trim().toLowerCase() !== "paschalidi@outlook.com") {
+      setMessage("Access denied. This app is private.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
