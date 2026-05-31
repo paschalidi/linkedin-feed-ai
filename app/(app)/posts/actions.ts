@@ -6,6 +6,8 @@ import { retrieveRelevantArticles } from "../compose/actions";
 import { getRandomSamplePosts } from "@/lib/linkedin-style";
 import { cleanPostOutput } from "@/lib/prompts";
 import { publishPostToLinkedInCore } from "@/lib/automation/publish-core";
+import { addToQueue } from "./queue-actions";
+import { getNextPreferredPostingTime } from "@/lib/automation/schedule";
 
 interface Version {
   content: string;
@@ -206,10 +208,21 @@ export async function saveIdeaTitle(ideaId: string, title: string) {
 
 export async function updatePostStatus(id: string, status: string) {
   try {
-    return await prisma.generatedPost.update({
+    const updated = await prisma.generatedPost.update({
       where: { id },
       data: { status },
     });
+
+    // Auto-queue on approve if enabled
+    if (status === "approved") {
+      const settings = await prisma.userSettings.findFirst();
+      if (settings?.autoPublishApproved) {
+        const scheduledAt = await getNextPreferredPostingTime();
+        await addToQueue(id, scheduledAt);
+      }
+    }
+
+    return updated;
   } catch (err: any) {
     console.error("updatePostStatus error:", err);
     throw new Error(err?.message || "Failed to update post status");
