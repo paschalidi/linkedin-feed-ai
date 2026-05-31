@@ -3,10 +3,22 @@
 import { createClient } from "@supabase/supabase-js";
 
 const ALLOWED_EMAIL = "paschalidi@outlook.com";
-const DEV_PASSWORD = "devpassword123";
+
+function getDevPassword(): string {
+  const password = process.env.DEV_PASSWORD;
+  if (!password) {
+    throw new Error(
+      "DEV_PASSWORD is not set.\n\n" +
+      "Add a strong password to your .env file:\n" +
+      "DEV_PASSWORD=your-very-strong-password-here"
+    );
+  }
+  return password;
+}
 
 export async function ensureDevUser() {
   const secretKey = process.env.SUPABASE_SECRET_KEY;
+  const devPassword = getDevPassword();
 
   if (!secretKey) {
     throw new Error(
@@ -15,8 +27,7 @@ export async function ensureDevUser() {
       "1. Go to https://supabase.com/dashboard/project/_/settings/api\n" +
       "2. Under 'Secret API key', click 'Generate new secret key'\n" +
       "3. Copy the sb_secret_... key\n" +
-      "4. Add it to your .env file: SUPABASE_SECRET_KEY=sb_secret_...\n\n" +
-      "Or set DEV_BYPASS_AUTH=true in .env for a no-key workaround."
+      "4. Add it to your .env file: SUPABASE_SECRET_KEY=sb_secret_..."
     );
   }
 
@@ -33,7 +44,7 @@ export async function ensureDevUser() {
 
   // Check if user exists
   const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-  
+
   if (listError) {
     throw new Error(`Failed to list users: ${listError.message}`);
   }
@@ -44,7 +55,7 @@ export async function ensureDevUser() {
     // Create the dev user
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: ALLOWED_EMAIL,
-      password: DEV_PASSWORD,
+      password: devPassword,
       email_confirm: true,
       user_metadata: { is_dev_user: true },
     });
@@ -53,8 +64,13 @@ export async function ensureDevUser() {
       throw new Error(`Failed to create dev user: ${createError.message}`);
     }
 
-    return { created: true, email: ALLOWED_EMAIL, password: DEV_PASSWORD };
+    return { created: true, email: ALLOWED_EMAIL, password: devPassword };
   }
+
+  // Update password in case env var changed
+  await supabaseAdmin.auth.admin.updateUserById(devUser.id, {
+    password: devPassword,
+  });
 
   // Ensure email is confirmed
   if (!devUser.email_confirmed_at) {
@@ -63,5 +79,14 @@ export async function ensureDevUser() {
     });
   }
 
-  return { created: false, email: ALLOWED_EMAIL, password: DEV_PASSWORD };
+  return { created: false, email: ALLOWED_EMAIL, password: devPassword };
+}
+
+export async function validateDevPassword(password: string): Promise<boolean> {
+  try {
+    const expected = getDevPassword();
+    return password === expected;
+  } catch {
+    return false;
+  }
 }

@@ -2,20 +2,33 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ensureDevUser } from "./dev-login";
+import { ensureDevUser, validateDevPassword } from "./dev-login";
 
 export default function LoginPage() {
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const handleDevLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    setMessage("Signing in...");
+    setMessage("");
 
     try {
+      // Validate password against env var
+      const isValid = await validateDevPassword(password);
+      if (!isValid) {
+        setMessage("Invalid password.");
+        setLoading(false);
+        return;
+      }
+
+      // Ensure dev user exists and get credentials
       const { email: devEmail, password: devPassword } = await ensureDevUser();
 
+      // Sign in with Supabase
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
 
@@ -45,33 +58,51 @@ export default function LoginPage() {
           <CardTitle className="text-3xl">LinkedIn Feed AI</CardTitle>
           <CardDescription className="text-base">Private app — authorized access only</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="bg-muted rounded-lg p-5 text-base space-y-2">
-            <p className="font-medium">Welcome back</p>
-            <p className="text-muted-foreground">
-              Click below to sign in. This app is restricted to the owner only.
-            </p>
-          </div>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                value="paschalidi@outlook.com"
+                disabled
+                className="text-base bg-muted"
+              />
+            </div>
 
-          <Button
-            onClick={handleDevLogin}
-            className="w-full text-base"
-            disabled={loading}
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </Button>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Password</label>
+              <Input
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                className="text-base"
+              />
+            </div>
 
-          {message && (
-            <p
-              className={`text-base text-center ${
-                message.includes("failed") || message.includes("error")
-                  ? "text-destructive"
-                  : "text-green-600"
-              }`}
+            <Button
+              type="submit"
+              className="w-full text-base"
+              disabled={loading || !password}
             >
-              {message}
-            </p>
-          )}
+              {loading ? "Signing in..." : "Sign In"}
+            </Button>
+
+            {message && (
+              <p
+                className={`text-base text-center ${
+                  message.includes("failed") || message.includes("Invalid")
+                    ? "text-destructive"
+                    : "text-green-600"
+                }`}
+              >
+                {message}
+              </p>
+            )}
+          </form>
         </CardContent>
       </Card>
     </div>
