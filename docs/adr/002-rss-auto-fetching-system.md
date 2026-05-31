@@ -32,9 +32,19 @@ Two server actions live in `app/(app)/sources/rss-actions.ts`:
 - **Batch deduplication**: before processing, all item URLs are collected and queried against `articles` in a single `IN` query, then stored in a `Set` for O(1) lookup. This avoids N+1 queries.
 - **URL resolution**: some feeds emit relative URLs (`/post/123`) or use `guid` instead of `link`. We resolve relative URLs with `new URL(link, feedUrl)` and fall back to `guid` when `link` is absent.
 
-### 2. Article Ingestion Pipeline
+### 2. Duplicate Protection (Three Layers)
 
-For each new RSS item:
+We deduplicate at three levels to prevent the same article from being ingested twice:
+
+1. **Batch URL pre-check** — before processing any feed items, all item URLs are collected and queried against `articles` in a single `SELECT url FROM articles WHERE url = ANY(...)::text[]`. Results are stored in a `Set` for O(1) lookup during the loop.
+
+2. **Per-item URL check** — each item URL is checked against the in-memory `Set` before ingestion. If it exists, the item is counted as `skipped`.
+
+3. **Content hash dedup** — `ingestSingleArticle()` computes a hash of the extracted article text (`computeContentHash`). If that hash already exists in the DB (via `contentHash` column with `@unique`), the article is skipped even if the URL is different (e.g., domain change, redirect).
+
+### 3. Article Ingestion Pipeline
+
+For each new RSS item that passes dedup:
 
 1. **Fetch HTML** via `fetchArticleText()` (Cheerio-based extractor).
 2. **Generate embedding** via `generateEmbedding()` (`gemini-embedding-001`, 768 dims via Matryoshka truncation).
@@ -73,7 +83,7 @@ This enables:
 ### Negative / Trade-offs
 
 - **No incremental feed parsing**: We fetch the whole feed every time. RSS feeds typically return the last N items (10–50), so bandwidth is negligible, but very large feeds could be wasteful. RSS `etag`/`last-modified` caching is not implemented.
-- **No deduplication by content hash**: We only deduplicate by URL. If a blogger changes domains or URL schemes, the same article could be ingested twice. A future enhancement could add a content-hash or title+date dedup layer.
+- ~~No deduplication by content hash~~ → **Fixed**: Content hash dedup is now implemented. Same article text is skipped even if the URL changed.
 - **Embedding cost**: Every new article triggers a Gemini embedding API call. With 20 feeds × 5 new articles/day = 100 embeddings/day. At `gemini-embedding-001` pricing (~$0.15/1M tokens), this is essentially free on the paid tier and well within free-tier limits.
 - **Foreign key on first idea only**: When multi-selecting ideas in the composer, the generated post still links to `ideas[0].id`. A true many-to-many join table is deferred.
 - **No feed health monitoring**: If a feed goes permanently offline, the sync will silently fail on each run. A future enhancement could surface per-feed error counts in the UI.
