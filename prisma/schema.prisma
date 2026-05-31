@@ -123,6 +123,7 @@ model UserSettings {
   timezone            String   @default("UTC")
   preferredPostingTime String  @default("09:00") @map("preferred_posting_time")
   maxPostsPerDay      Int      @default(1) @map("max_posts_per_day")
+  ideasPerDay         Int      @default(3) @map("ideas_per_day")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 

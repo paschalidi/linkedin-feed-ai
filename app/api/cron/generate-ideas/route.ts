@@ -45,32 +45,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: "Already ran today" });
     }
 
-    const result = await generateDailyIdeas({
-      articleCount: 5,
-      styleAware: true,
-      recencyFilter: 30,
-    });
+    const ideasPerDay = settings.ideasPerDay || 3;
+    const userId = settings.userId;
+    const generated: string[] = [];
+    const skipped: string[] = [];
 
-    if (!result.success) {
-      await logAutomationJob("generate-ideas", "skipped", result.error);
-      return NextResponse.json({ success: true, skipped: result.error });
+    for (let i = 0; i < ideasPerDay; i++) {
+      const result = await generateDailyIdeas({
+        articleCount: 5,
+        styleAware: true,
+        recencyFilter: 30,
+      });
+
+      if (!result.success) {
+        skipped.push(result.error);
+        continue;
+      }
+
+      await prisma.dailyIdea.create({
+        data: {
+          title: result.title,
+          description: result.description,
+          userId,
+          status: "draft",
+        },
+      });
+
+      generated.push(result.title);
     }
 
-    // Find the user ID to associate with the idea
-    const userId = settings.userId;
+    const logMsg = `Generated ${generated.length}/${ideasPerDay} ideas. Generated: [${generated.join(", ")}]. Skipped: [${skipped.join(", ")}]`;
+    await logAutomationJob("generate-ideas", "success", logMsg);
 
-    await prisma.dailyIdea.create({
-      data: {
-        title: result.title,
-        description: result.description,
-        userId,
-        status: "draft",
-      },
-    });
-
-    await logAutomationJob("generate-ideas", "success", `Generated idea: "${result.title}"`);
-
-    return NextResponse.json({ success: true, idea: result.title });
+    return NextResponse.json({ success: true, generated, skipped });
   } catch (error: any) {
     await logAutomationJob("generate-ideas", "failed", error.message);
     return NextResponse.json(

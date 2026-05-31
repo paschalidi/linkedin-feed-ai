@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   timezone: "UTC",
   preferredPostingTime: "09:00",
   maxPostsPerDay: 1,
+  ideasPerDay: 3,
 };
 
 export async function getSettings() {
@@ -23,6 +24,7 @@ export async function getSettings() {
       timezone: settings.timezone,
       preferredPostingTime: settings.preferredPostingTime,
       maxPostsPerDay: settings.maxPostsPerDay,
+      ideasPerDay: settings.ideasPerDay,
     };
   } catch (err) {
     console.error("getSettings error:", err);
@@ -41,6 +43,7 @@ export async function saveSettings(formData: FormData) {
       timezone: (formData.get("timezone") as string) || "UTC",
       preferredPostingTime: (formData.get("preferredPostingTime") as string) || "09:00",
       maxPostsPerDay: parseInt((formData.get("maxPostsPerDay") as string) || "1", 10),
+      ideasPerDay: parseInt((formData.get("ideasPerDay") as string) || "3", 10),
     };
 
     if (existing) {

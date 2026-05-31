@@ -41,7 +41,7 @@ export default async function SettingsPage() {
               <div className="space-y-0.5">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="autoGenerateIdeas">Auto-generate ideas</label>
                 <p className="text-sm text-muted-foreground">
-                  Generate one new idea daily from recent articles
+                  Generate new ideas daily from recent articles
                 </p>
               </div>
               <input
@@ -119,6 +119,22 @@ export default async function SettingsPage() {
               />
               <p className="text-sm text-muted-foreground">
                 Maximum LinkedIn posts per day (includes manual publishes)
+              </p>
+            </div>
+
+            {/* Ideas per day */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="ideasPerDay">Ideas per day</label>
+              <Input
+                id="ideasPerDay"
+                name="ideasPerDay"
+                type="number"
+                min={1}
+                max={10}
+                defaultValue={settings.ideasPerDay}
+              />
+              <p className="text-sm text-muted-foreground">
+                How many new ideas to generate each day
               </p>
             </div>
           </CardContent>
