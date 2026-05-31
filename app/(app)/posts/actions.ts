@@ -242,18 +242,23 @@ export async function publishToLinkedIn(id: string, content: string) {
       );
     }
 
-    // Fetch the post idea to get the title for the branded image
+    // Fetch the post with its saved branded image
     const post = await prisma.generatedPost.findUnique({
       where: { id },
       include: { idea: true },
     });
 
-    // Generate the branded image
-    const imageBuffer = await generatePostImage({
-      title: post?.idea?.title || "LinkedIn Post",
-      content: cleanPostOutput(content),
-      authorName: "paschalidi",
-    });
+    // Use the saved branded image if available; otherwise generate a new one
+    let imageBuffer: Buffer;
+    if (post?.brandedImageData) {
+      imageBuffer = Buffer.from(post.brandedImageData);
+    } else {
+      imageBuffer = await generatePostImage({
+        title: post?.idea?.title || "LinkedIn Post",
+        content: cleanPostOutput(content),
+        authorName: "paschalidi",
+      });
+    }
 
     // Upload the image to Zernio
     const mediaUrl = await uploadMediaToZernio(imageBuffer);
