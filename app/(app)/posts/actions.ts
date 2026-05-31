@@ -3,10 +3,9 @@
 import { prisma } from "@/lib/prisma";
 import { generateLinkedInPost } from "@/lib/gemini";
 import { retrieveRelevantArticles } from "../compose/actions";
-import { createLinkedInPost, uploadMediaToZernio } from "@/lib/zernio";
-import { generatePostImage } from "@/lib/post-image-generator";
 import { getRandomSamplePosts } from "@/lib/linkedin-style";
 import { cleanPostOutput } from "@/lib/prompts";
+import { publishPostToLinkedInCore } from "@/lib/automation/publish-core";
 
 interface Version {
   content: string;
@@ -235,46 +234,7 @@ export async function publishToLinkedIn(id: string, content: string) {
       throw new Error("Post has no content to publish");
     }
 
-    const accountId = process.env.ZERNIO_LINKEDIN_ACCOUNT_ID;
-    if (!accountId) {
-      throw new Error(
-        "ZERNIO_LINKEDIN_ACCOUNT_ID is not configured. Add it to your .env.local file."
-      );
-    }
-
-    // Fetch the post with its saved branded image
-    const post = await prisma.generatedPost.findUnique({
-      where: { id },
-      include: { idea: true },
-    });
-
-    // Use the saved branded image if available; otherwise generate a new one
-    let imageBuffer: Buffer;
-    if (post?.brandedImageData) {
-      imageBuffer = Buffer.from(post.brandedImageData);
-    } else {
-      imageBuffer = await generatePostImage({
-        title: post?.idea?.title || "LinkedIn Post",
-        content: cleanPostOutput(content),
-        authorName: "paschalidi",
-      });
-    }
-
-    // Upload the image to Zernio
-    const mediaUrl = await uploadMediaToZernio(imageBuffer);
-
-    // Publish to LinkedIn with the image
-    const result = await createLinkedInPost(content, accountId, mediaUrl);
-
-    // Mark as posted and record the LinkedIn post ID
-    await prisma.generatedPost.update({
-      where: { id },
-      data: {
-        status: "posted",
-        linkedInPostId: result.postId,
-        publishedToLinkedInAt: new Date(),
-      },
-    });
+    const result = await publishPostToLinkedInCore(id, content);
 
     return { success: true, postId: result.postId, postUrl: result.postUrl };
   } catch (err: any) {
