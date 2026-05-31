@@ -16,30 +16,17 @@ export default function LoginPage() {
   const [cooldown, setCooldown] = useState(0);
   const [isDevMode, setIsDevMode] = useState(false);
 
-  // Handle magic link callback: if user lands on /login?code=xxx, exchange it
+  // If user lands on /login?code=xxx (e.g. from magic link), redirect to auth callback
   useEffect(() => {
     const url = new URL(window.location.href);
     const code = url.searchParams.get("code");
+    const error = url.searchParams.get("error");
 
     if (code) {
-      setLoading(true);
-      setMessage("Completing sign in...");
-
-      import("@/lib/supabase/client").then(({ createClient }) => {
-        const supabase = createClient();
-        supabase.auth
-          .exchangeCodeForSession(code)
-          .then(({ error }) => {
-            if (error) {
-              setMessage(`Sign in failed: ${error.message}`);
-            } else {
-              // Clean up URL and redirect
-              window.history.replaceState({}, "", "/login");
-              window.location.href = "/dashboard";
-            }
-          })
-          .finally(() => setLoading(false));
-      });
+      // Redirect to the server-side auth callback which can read PKCE cookies
+      window.location.href = `/auth/callback?code=${encodeURIComponent(code)}`;
+    } else if (error) {
+      setMessage(`Sign in failed: ${error}`);
     }
   }, []);
 
