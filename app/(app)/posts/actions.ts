@@ -26,6 +26,7 @@ export async function getPost(id: string) {
     return await prisma.generatedPost.findUnique({
       where: { id },
       include: { idea: true },
+      omit: { brandedImageData: true },
     });
   } catch (err: any) {
     console.error("getPost error:", err);
@@ -40,7 +41,10 @@ export async function updatePost(formData: FormData) {
     const status = formData.get("status") as string;
 
     // Also update the current version in the versions array
-    const post = await prisma.generatedPost.findUnique({ where: { id } });
+    const post = await prisma.generatedPost.findUnique({
+      where: { id },
+      omit: { brandedImageData: true },
+    });
     if (!post) throw new Error("Post not found");
 
     const versions = getVersions(post);

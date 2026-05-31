@@ -9,6 +9,7 @@ export default async function PostsPage() {
     where: { status: { not: "archived" } },
     orderBy: { createdAt: "desc" },
     include: { idea: true },
+    omit: { brandedImageData: true },
   });
 
   return (

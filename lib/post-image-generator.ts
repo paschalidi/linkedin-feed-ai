@@ -8,14 +8,11 @@ export interface PostImageOptions {
 }
 
 /**
- * Generate a branded image with phone-screen dimensions.
- *
- * The image uses a tall, narrow aspect ratio (390×700) that
- * looks native on mobile feeds.
+ * Generate a minimal branded image at LinkedIn portrait dimensions (1080×1350).
+ * Renders the first two paragraphs of the post centred on a dark green canvas.
  *
  * Uses Playwright to screenshot a styled HTML page.
- *
- * Tweak IMAGE_HEIGHT in lib/image-config.ts to experiment with sizes.
+ * Tweak IMAGE_WIDTH / IMAGE_HEIGHT in lib/image-config.ts to change sizing.
  */
 export async function generatePostImage(
   options: PostImageOptions
@@ -45,7 +42,7 @@ export async function generatePostImage(
   }
 }
 
-function buildImageHtml({ content, authorName }: PostImageOptions): string {
+function buildImageHtml({ content }: PostImageOptions): string {
   // Strip markdown remnants
   const cleanContent = content
     .replace(/\*\*/g, "")
@@ -58,9 +55,8 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
     .filter((l) => l.length > 0);
 
   /*
-    Show only the first 2 paragraphs on the image — the hook + the punch.
-    This keeps the image punchy and readable on mobile.
-    The full post stays at 120–180 words; the image is just a teaser.
+    Show the first 2 paragraphs — hook + punch — centred on the canvas.
+    The full post stays in the LinkedIn caption; the image is the teaser.
   */
   const displayLines = lines.slice(0, 2);
 
@@ -89,24 +85,21 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
     }
 
     /*
-      Warm peach bloom centred near the bottom.
-      Tall enough to bleed past the canvas edge so only the soft
-      upper glow is visible inside the card.
+      Subtle peach bloom anchored at the bottom edge — most of it bleeds
+      below the canvas so only a faint warm glow is visible.
     */
     .bloom {
       position: absolute;
       left: 50%;
-      bottom: -${Math.round(IMAGE_HEIGHT * 0.45)}px;
+      bottom: -${Math.round(IMAGE_HEIGHT * 0.55)}px;
       transform: translateX(-50%);
-      width: ${Math.round(IMAGE_WIDTH * 1.54)}px;
-      height: ${Math.round(IMAGE_HEIGHT * 0.65)}px;
+      width: ${Math.round(IMAGE_WIDTH * 1.4)}px;
+      height: ${Math.round(IMAGE_HEIGHT * 0.7)}px;
       background: radial-gradient(ellipse at center,
-        rgba(248, 218, 188, 0.98) 0%,
-        rgba(246, 206, 172, 0.80) 18%,
-        rgba(240, 188, 150, 0.50) 35%,
-        rgba(220, 160, 120, 0.22) 55%,
-        rgba(13, 36, 24, 0) 75%);
-      filter: blur(40px);
+        rgba(248, 218, 188, 0.55) 0%,
+        rgba(240, 188, 150, 0.25) 35%,
+        rgba(13, 36, 24, 0) 70%);
+      filter: blur(80px);
       pointer-events: none;
       z-index: 0;
     }
@@ -116,37 +109,22 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
       inset: 0;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
+      justify-content: center;
       align-items: center;
-      padding: 72px 28px 120px;
+      padding: 360px 90px;
       text-align: center;
       z-index: 1;
     }
 
-    .author {
-      position: absolute;
-      bottom: 20px;
-      left: 0;
-      right: 0;
-      text-align: center;
-      font-family: 'Inter', sans-serif;
-      font-size: 11px;
-      font-weight: 500;
-      color: #0d2418;
-      letter-spacing: 0.15em;
-      opacity: 0.95;
-      z-index: 2;
-    }
-
     .post-line {
       font-family: 'Inter', sans-serif;
-      font-size: 20px;
-      font-weight: 400;
-      color: rgba(255, 255, 255, 0.92);
+      font-size: 48px;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.94);
       line-height: 1.4;
-      margin-bottom: 10px;
-      max-width: 310px;
-      letter-spacing: 0.01em;
+      margin-bottom: 32px;
+      max-width: 880px;
+      letter-spacing: 0.005em;
     }
 
     .post-line:last-child {
@@ -159,7 +137,6 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
   <div class="page">
     ${bodyHtml}
   </div>
-  <div class="author">@${escapeHtml(authorName || "paschalidi")}</div>
 </body>
 </html>
   `.trim();
