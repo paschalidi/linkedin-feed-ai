@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const result = await generateDailyIdeas({
       articleCount: 5,
       styleAware: true,
-      recencyFilter: 7,
+      recencyFilter: 30,
     });
 
     if (!result.success) {

@@ -61,7 +61,7 @@ export default function TestAutomationPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Picks 5 recent articles, calls Gemini to generate a new idea.
+            Picks 5 random articles from the last 30 days, calls Gemini to generate a new idea.
             Same as the daily cron.
           </p>
           <Button onClick={runIdea}>Run Idea Generation</Button>
