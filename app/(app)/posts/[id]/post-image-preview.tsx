@@ -60,28 +60,27 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
         </div>
       )}
 
-      <div className="flex justify-center">
-        <div
-          className="relative border rounded-lg overflow-hidden shadow-sm"
-          style={{ width: IMAGE_WIDTH, height: IMAGE_HEIGHT }}
-        >
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
-              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            key={imageUrl}
-            src={imageUrl}
-            alt="Branded post preview"
-            width={IMAGE_WIDTH}
-            height={IMAGE_HEIGHT}
-            className="block"
-            onLoad={handleLoad}
-            onError={handleError}
-          />
-        </div>
+      {/* Aspect-ratio wrapper — fills the column width at the correct 1200:627 ratio */}
+      <div
+        className="relative w-full border rounded-lg overflow-hidden shadow-sm bg-muted"
+        style={{ aspectRatio: `${IMAGE_WIDTH} / ${IMAGE_HEIGHT}` }}
+      >
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
+            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          key={imageUrl}
+          src={imageUrl}
+          alt="Branded post preview"
+          width={IMAGE_WIDTH}
+          height={IMAGE_HEIGHT}
+          className="absolute inset-0 w-full h-full object-cover"
+          onLoad={handleLoad}
+          onError={handleError}
+        />
       </div>
 
       <a
@@ -94,8 +93,7 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
         </Button>
       </a>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        <strong>{IMAGE_WIDTH} x {IMAGE_HEIGHT} px</strong> — phone-screen dimensions.
-        Tall and narrow so it looks native on mobile feeds without cropping.
+        <strong>{IMAGE_WIDTH} × {IMAGE_HEIGHT} px</strong> — LinkedIn OG optimal size.
       </p>
     </div>
   );
