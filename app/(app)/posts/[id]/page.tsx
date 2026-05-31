@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getPost, updatePostStatus } from "../actions";
+import { addToQueue, removeFromQueue, getQueueItem } from "../queue-actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,12 +11,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, CalendarPlus, CalendarMinus } from "lucide-react";
 import Link from "next/link";
 import { VersionToolbar } from "./version-toolbar";
 import { PostEditor } from "./post-editor";
 import PostImagePreview from "./post-image-preview";
 import { TitleEditor } from "./title-editor";
+import { getNextPreferredPostingTime } from "@/lib/automation/schedule";
 
 export default async function PostDetailPage({
   params,
@@ -30,6 +32,8 @@ export default async function PostDetailPage({
   }
 
   const idea = post.idea;
+  const queueItem = await getQueueItem(id);
+  const nextPreferredTime = await getNextPreferredPostingTime();
 
   // Parse versions for display
   let versions: Array<{ content: string; createdAt: string }> = [];
@@ -149,7 +153,7 @@ export default async function PostDetailPage({
             {/* Branded Image Preview */}
             <PostImagePreview postId={id} />
 
-            {post.status === "approved" && (
+            {post.status === "approved" && !queueItem && (
               <form
                 action={async () => {
                   "use server";
@@ -163,6 +167,61 @@ export default async function PostDetailPage({
                   Mark as Posted
                 </Button>
               </form>
+            )}
+
+            {post.status === "approved" && !queueItem && (
+              <form
+                action={async (formData: FormData) => {
+                  "use server";
+                  const scheduledAtStr = formData.get("scheduledAt") as string;
+                  const scheduledAt = scheduledAtStr
+                    ? new Date(scheduledAtStr)
+                    : await getNextPreferredPostingTime();
+                  await addToQueue(id, scheduledAt);
+                  revalidatePath(`/posts/${id}`);
+                  revalidatePath("/posts");
+                }}
+                className="space-y-2"
+              >
+                <input
+                  type="datetime-local"
+                  name="scheduledAt"
+                  defaultValue={nextPreferredTime.toISOString().slice(0, 16)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+                <Button type="submit" variant="outline" className="w-full">
+                  <CalendarPlus className="h-4 w-4 mr-2" />
+                  Add to Queue
+                </Button>
+              </form>
+            )}
+
+            {queueItem && (
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Queue status:</span>{" "}
+                  {queueItem.status === "pending"
+                    ? `Scheduled for ${new Date(queueItem.scheduledAt).toLocaleString()}`
+                    : queueItem.status === "published"
+                    ? `Published on ${new Date(queueItem.publishedAt!).toLocaleString()}`
+                    : `Failed: ${queueItem.error || "Unknown error"}`}
+                </div>
+                {queueItem.status === "pending" && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      await removeFromQueue(id);
+                      revalidatePath(`/posts/${id}`);
+                      revalidatePath("/posts");
+                    }}
+                  >
+                    <Button type="submit" variant="outline" className="w-full text-red-600">
+                      <CalendarMinus className="h-4 w-4 mr-2" />
+                      Remove from Queue
+                    </Button>
+                  </form>
+                )}
+              </div>
             )}
 
             {post.publishedToLinkedInAt && (
