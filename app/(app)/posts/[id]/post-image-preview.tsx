@@ -96,9 +96,9 @@ export default function PostImagePreview({ postId }: PostImagePreviewProps) {
         </Button>
       </a>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        <strong>960 x 1200 px</strong> — 4:5 portrait ratio. 
-        On mobile LinkedIn feeds this fills the screen edge-to-edge without cropping. 
-        Landscape images get cut off on phones; portrait images get the full frame.
+        <strong>390 x 844 px</strong> — phone-screen dimensions. 
+        Matches an iPhone screen aspect ratio so it looks native on mobile feeds. 
+        Landscape images get cut off on phones; this fills the frame naturally.
       </p>
     </div>
   );
