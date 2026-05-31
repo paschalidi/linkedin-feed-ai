@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { IMAGE_WIDTH, IMAGE_HEIGHT } from "./image-config";
 
 export interface PostImageOptions {
   title: string;
@@ -9,10 +10,12 @@ export interface PostImageOptions {
 /**
  * Generate a branded image with phone-screen dimensions.
  *
- * The image uses a tall, narrow aspect ratio (390×844) that
- * matches a phone screen, so it looks native on mobile feeds.
+ * The image uses a tall, narrow aspect ratio (390×700) that
+ * looks native on mobile feeds.
  *
  * Uses Playwright to screenshot a styled HTML page.
+ *
+ * Tweak IMAGE_HEIGHT in lib/image-config.ts to experiment with sizes.
  */
 export async function generatePostImage(
   options: PostImageOptions
@@ -21,7 +24,7 @@ export async function generatePostImage(
 
   try {
     const page = await browser.newPage({
-      viewport: { width: 390, height: 844 },
+      viewport: { width: IMAGE_WIDTH, height: IMAGE_HEIGHT },
       deviceScaleFactor: 3,
     });
 
@@ -76,8 +79,8 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      width: 390px;
-      height: 844px;
+      width: ${IMAGE_WIDTH}px;
+      height: ${IMAGE_HEIGHT}px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #0d2418;
       color: #ffffff;
@@ -93,10 +96,10 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
     .bloom {
       position: absolute;
       left: 50%;
-      bottom: -380px;
+      bottom: -${Math.round(IMAGE_HEIGHT * 0.45)}px;
       transform: translateX(-50%);
-      width: 600px;
-      height: 550px;
+      width: ${Math.round(IMAGE_WIDTH * 1.54)}px;
+      height: ${Math.round(IMAGE_HEIGHT * 0.65)}px;
       background: radial-gradient(ellipse at center,
         rgba(248, 218, 188, 0.98) 0%,
         rgba(246, 206, 172, 0.80) 18%,
@@ -113,9 +116,9 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
       inset: 0;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
-      padding: 60px 32px 60px;
+      padding: 48px 28px 120px;
       text-align: center;
       z-index: 1;
     }
@@ -137,11 +140,11 @@ function buildImageHtml({ content, authorName }: PostImageOptions): string {
 
     .post-line {
       font-family: 'Inter', sans-serif;
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 400;
       color: rgba(255, 255, 255, 0.92);
-      line-height: 1.35;
-      margin-bottom: 12px;
+      line-height: 1.4;
+      margin-bottom: 10px;
       max-width: 310px;
       letter-spacing: 0.01em;
     }
