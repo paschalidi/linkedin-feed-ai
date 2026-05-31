@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ensureDevUser } from "./dev-login";
-import { getURL } from "@/lib/utils/url";
 
 const COOLDOWN_SECONDS = 60;
 const STORAGE_KEY = "magic_link_last_sent";
@@ -16,6 +15,33 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [isDevMode, setIsDevMode] = useState(false);
+
+  // Handle magic link callback: if user lands on /login?code=xxx, exchange it
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+
+    if (code) {
+      setLoading(true);
+      setMessage("Completing sign in...");
+
+      import("@/lib/supabase/client").then(({ createClient }) => {
+        const supabase = createClient();
+        supabase.auth
+          .exchangeCodeForSession(code)
+          .then(({ error }) => {
+            if (error) {
+              setMessage(`Sign in failed: ${error.message}`);
+            } else {
+              // Clean up URL and redirect
+              window.history.replaceState({}, "", "/login");
+              window.location.href = "/dashboard";
+            }
+          })
+          .finally(() => setLoading(false));
+      });
+    }
+  }, []);
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +66,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${getURL()}auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
